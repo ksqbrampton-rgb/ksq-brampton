@@ -1,0 +1,339 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DATABASE_DIRECT_URL")
+}
+
+// ─── ENUMS ──────────────────────────────────────────────────
+
+enum StaffRole {
+  OFFICER
+  MANAGER
+  SUPER_ADMIN
+}
+
+enum ApplicationStatus {
+  APPOINTMENT_SCHEDULED
+  ARRIVED
+  BIOMETRICS_CAPTURED
+  NIN_PROCESSING
+  NIN_ISSUED
+  NO_SHOW
+  CANCELLED
+}
+
+enum DocumentType {
+  NIGERIAN_PASSPORT
+  SECONDARY_ID
+  PAYMENT_RECEIPT
+  PRE_ENROLLMENT_FORM
+  PARENT_PASSPORT
+  OTHER
+}
+
+enum DocumentStatus {
+  PENDING_REVIEW
+  APPROVED
+  REJECTED
+}
+
+enum AppointmentStatus {
+  SCHEDULED
+  ARRIVED
+  COMPLETED
+  NO_SHOW
+  CANCELLED
+  RESCHEDULED
+}
+
+enum PaymentStatus {
+  PENDING
+  VERIFIED
+}
+
+enum PaymentMethod {
+  CASH
+  E_TRANSFER
+  OTHER
+}
+
+enum DayOfWeek {
+  MONDAY
+  TUESDAY
+  WEDNESDAY
+  THURSDAY
+  FRIDAY
+  SATURDAY
+  SUNDAY
+}
+
+enum AuditAction {
+  CREATED
+  UPDATED
+  STATUS_CHANGED
+  DOCUMENT_UPLOADED
+  DOCUMENT_REVIEWED
+  NIN_ISSUED
+  CHECKIN
+  NO_SHOW_MARKED
+  APPOINTMENT_CANCELLED
+  APPOINTMENT_RESCHEDULED
+  SLOT_BLOCKED
+  SLOT_BOOKED
+  AVAILABILITY_UPDATED
+  STAFF_LOGIN
+  STAFF_LOGOUT
+  EXPORT_GENERATED
+  SETTING_CHANGED
+}
+
+// ─── AVAILABILITY ────────────────────────────────────────────
+
+model AvailabilityTemplate {
+  id           String    @id @default(cuid())
+  dayOfWeek    DayOfWeek @unique
+  isOpen       Boolean   @default(false)
+  openTime     String? // "09:00" 24hr format
+  closeTime    String? // "17:00" 24hr format
+  slotDuration Int       @default(30) // minutes
+  bufferTime   Int       @default(0) // minutes between slots
+  maxPerDay    Int       @default(20)
+  updatedAt    DateTime  @updatedAt
+  updatedById  String?
+
+  @@map("availability_templates")
+}
+
+model DateException {
+  id          String   @id @default(cuid())
+  date        DateTime @unique @db.Date
+  isClosed    Boolean  @default(true)
+  openTime    String?
+  closeTime   String?
+  reason      String?
+  createdById String
+  createdAt   DateTime @default(now())
+
+  @@map("date_exceptions")
+}
+
+model SlotBlock {
+  id          String   @id @default(cuid())
+  slotStart   DateTime @unique
+  reason      String?
+  createdById String
+  createdAt   DateTime @default(now())
+
+  @@map("slot_blocks")
+}
+
+// ─── CORE ────────────────────────────────────────────────────
+
+model Guest {
+  id           String   @id @default(cuid())
+  email        String   @unique // encrypted at field level
+  firstName    String
+  lastName     String
+  phone        String? // encrypted at field level
+  noShowCount  Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  applications Application[]
+  emailLogs    EmailLog[]
+
+  @@map("guests")
+}
+
+model Application {
+  id             String            @id @default(cuid())
+  applicationRef String            @unique // "KSQ-BPT-20260525-0042"
+  status         ApplicationStatus @default(APPOINTMENT_SCHEDULED)
+
+  guestId   String
+  guest     Guest      @relation(fields: [guestId], references: [id])
+  officerId String?
+  officer   StaffUser? @relation("OfficerApplications", fields: [officerId], references: [id])
+
+  // NIN tracking
+  biometricsDoneAt    DateTime?
+  ninNumber           String? // AES-256-GCM encrypted
+  ninIssuedAt         DateTime?
+  ninCollectedAt      DateTime?
+  ninShipped          Boolean   @default(false)
+  ninCollectionMethod String? // "IN_PERSON" | "SHIPPED"
+
+  // Payment
+  paymentStatus       PaymentStatus  @default(PENDING)
+  paymentMethod       PaymentMethod?
+  paymentReference    String?
+  paymentVerifiedAt   DateTime?
+  paymentVerifiedById String?
+
+  // Flags
+  isDuplicateFlag    Boolean @default(false)
+  requiresFormAssist Boolean @default(false)
+
+  // Internal
+  notes              String?
+  cancellationReason String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  appointment   Appointment?
+  documents     Document[]
+  statusHistory StatusHistory[]
+  auditLogs     AuditLog[]
+
+  @@map("applications")
+}
+
+model Appointment {
+  id            String            @id @default(cuid())
+  applicationId String            @unique
+  application   Application       @relation(fields: [applicationId], references: [id])
+  status        AppointmentStatus @default(SCHEDULED)
+
+  slotStart DateTime
+  slotEnd   DateTime
+
+  arrivedAt        DateTime?
+  completedAt      DateTime?
+  noShowMarkedAt   DateTime?
+  noShowMarkedById String?
+
+  reminder48hSentAt DateTime?
+  reminder2hSentAt  DateTime?
+
+  cancellationReason  String?
+  rescheduledFromSlot DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("appointments")
+}
+
+model Document {
+  id            String    @id @default(cuid())
+  applicationId String
+  application   Application @relation(fields: [applicationId], references: [id])
+  uploadedById  String
+  uploadedBy    StaffUser   @relation("UploadedDocuments", fields: [uploadedById], references: [id])
+
+  type   DocumentType
+  status DocumentStatus @default(PENDING_REVIEW)
+
+  storagePath String @unique
+  fileName    String
+  fileSize    Int
+  mimeType    String
+
+  reviewedById  String?
+  reviewedBy    StaffUser? @relation("ReviewedDocuments", fields: [reviewedById], references: [id])
+  rejectionReason String?
+  reviewNotes   String?
+  reviewedAt    DateTime?
+
+  version           Int     @default(1)
+  previousVersionId String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("documents")
+}
+
+model StatusHistory {
+  id            String             @id @default(cuid())
+  applicationId String
+  application   Application        @relation(fields: [applicationId], references: [id])
+  fromStatus    ApplicationStatus?
+  toStatus      ApplicationStatus
+  changedById   String
+  changedBy     StaffUser          @relation(fields: [changedById], references: [id])
+  note          String?
+  createdAt     DateTime           @default(now())
+
+  @@map("status_history")
+}
+
+model StaffUser {
+  id               String    @id @default(cuid())
+  email            String    @unique
+  passwordHash     String
+  firstName        String
+  lastName         String
+  role             StaffRole
+  isActive         Boolean   @default(true)
+  twoFactorEnabled Boolean   @default(false)
+  twoFactorSecret  String?
+  lastLoginAt      DateTime?
+  inviteAcceptedAt DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  assignedApps      Application[]  @relation("OfficerApplications")
+  uploadedDocuments Document[]     @relation("UploadedDocuments")
+  reviewedDocuments Document[]     @relation("ReviewedDocuments")
+  statusChanges     StatusHistory[]
+  auditLogs         AuditLog[]
+
+  @@map("staff_users")
+}
+
+model EmailLog {
+  id            String   @id @default(cuid())
+  guestId       String
+  guest         Guest    @relation(fields: [guestId], references: [id])
+  applicationId String?
+  eventType     String
+  subject       String
+  resendId      String?
+  sentAt        DateTime?
+  deliveredAt   DateTime?
+  openedAt      DateTime?
+  bouncedAt     DateTime?
+  failReason    String?
+  createdAt     DateTime @default(now())
+
+  @@map("email_logs")
+}
+
+model AuditLog {
+  id            String       @id @default(cuid())
+  timestamp     DateTime     @default(now())
+  staffId       String?
+  staff         StaffUser?   @relation(fields: [staffId], references: [id])
+  staffRole     StaffRole?
+  action        AuditAction
+  entityType    String
+  entityId      String?
+  applicationId String?
+  application   Application? @relation(fields: [applicationId], references: [id])
+  oldValue      Json?
+  newValue      Json?
+  ipAddress     String?
+  userAgent     String?
+  metadata      Json?
+
+  @@index([staffId])
+  @@index([entityType, entityId])
+  @@index([timestamp])
+  @@map("audit_logs")
+}
+
+model SystemSetting {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  value     String
+  updatedAt DateTime @updatedAt
+  updatedBy String?
+
+  @@map("system_settings")
+}
