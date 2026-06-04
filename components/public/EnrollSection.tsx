@@ -61,23 +61,18 @@ export default function EnrollSection() {
           </p>
         </div>
 
-        {/* 6-card grid */}
-        <div
-          className="grid gap-6 reveal"
-          style={{
-            gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
-          }}
-        >
+        {/* 6-card grid — 1 col mobile · 2 col tablet · 3 col desktop */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 reveal">
           {STEPS.map((step) => (
             <div
               key={step.number}
               className="ksq-card group"
-              style={{ background: "var(--cream)" }}
+              style={{ background: "var(--cream)", padding: "2rem" }}
             >
               {/* Number badge */}
-              <div className="flex items-start gap-4 mb-4">
+              <div className="flex items-start gap-4 mb-5">
                 <div
-                  className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 font-heading font-bold text-lg transition-colors duration-200"
+                  className="w-12 h-12 rounded-lg flex items-center justify-center flex-shrink-0 font-heading font-bold text-xl transition-colors duration-200"
                   style={{
                     background: "var(--green)",
                     color: "var(--gold)",
@@ -88,9 +83,9 @@ export default function EnrollSection() {
                 </div>
               </div>
               <h3
-                className="font-heading font-semibold mb-2"
+                className="font-heading font-semibold mb-3"
                 style={{
-                  fontSize: "1.2rem",
+                  fontSize: "1.35rem",
                   color: "var(--dark)",
                   fontFamily: "var(--font-cormorant)",
                 }}

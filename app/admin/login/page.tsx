@@ -166,16 +166,6 @@ export default function AdminLoginPage() {
           <Suspense fallback={<div className="h-48" />}>
             <LoginForm />
           </Suspense>
-
-          {/* Dev hint */}
-          <div
-            className="mt-6 p-3 rounded-lg text-xs font-body"
-            style={{ background: "rgba(201,151,58,0.08)", border: "1px solid rgba(201,151,58,0.15)", color: "rgba(255,255,255,0.45)" }}
-          >
-            <p className="font-medium mb-1" style={{ color: "var(--gold)" }}>Dev credentials</p>
-            <p>Email: <span className="font-mono text-white/60">admin@ksqbrampton.ca</span></p>
-            <p>Password: <span className="font-mono text-white/60">Admin1234!</span></p>
-          </div>
         </div>
 
         <p className="text-center mt-6">
