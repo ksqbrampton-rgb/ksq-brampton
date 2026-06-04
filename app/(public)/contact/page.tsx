@@ -1,10 +1,6 @@
-import type { Metadata } from "next";
-import { SITE } from "@/lib/constants";
+"use client";
 
-export const metadata: Metadata = {
-  title: "Contact Us",
-  description: "Get in touch with Knowledge Square NIN Enrollment Center in Brampton, Ontario.",
-};
+import { SITE } from "@/lib/constants";
 
 export default function ContactPage() {
   return (
