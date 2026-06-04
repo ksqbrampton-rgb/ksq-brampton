@@ -166,6 +166,16 @@ export default function AdminLoginPage() {
           <Suspense fallback={<div className="h-48" />}>
             <LoginForm />
           </Suspense>
+
+          {/* Links */}
+          <div className="mt-5 flex items-center justify-between">
+            <Link href="/admin/forgot-password" className="text-xs font-body transition-opacity hover:opacity-80" style={{ color: "rgba(255,255,255,0.40)" }}>
+              Forgot password?
+            </Link>
+            <Link href="/admin/register" className="text-xs font-body transition-opacity hover:opacity-80" style={{ color: "var(--gold)" }}>
+              First-time setup →
+            </Link>
+          </div>
         </div>
 
         <p className="text-center mt-6">

@@ -87,7 +87,16 @@ export default function Navbar() {
             </nav>
 
             {/* Desktop CTA */}
-            <div className="hidden lg:block flex-shrink-0">
+            <div className="hidden lg:flex items-center gap-3 flex-shrink-0">
+              <Link
+                href="/admin/login"
+                className="text-xs font-body font-medium px-3 py-2 rounded-md transition-all"
+                style={{ color: "rgba(255,255,255,0.50)", border: "1px solid rgba(255,255,255,0.12)" }}
+                onMouseEnter={e => { (e.currentTarget as HTMLAnchorElement).style.color = "white"; (e.currentTarget as HTMLAnchorElement).style.borderColor = "rgba(255,255,255,0.30)"; }}
+                onMouseLeave={e => { (e.currentTarget as HTMLAnchorElement).style.color = "rgba(255,255,255,0.50)"; (e.currentTarget as HTMLAnchorElement).style.borderColor = "rgba(255,255,255,0.12)"; }}
+              >
+                Staff Login
+              </Link>
               <Link href="/book" className="btn-primary text-sm whitespace-nowrap">
                 Book an Appointment
               </Link>
@@ -181,6 +190,16 @@ export default function Navbar() {
               className="btn-primary mt-6 justify-center text-center py-4 text-base font-semibold"
             >
               Book an Appointment
+            </Link>
+
+            {/* Staff login */}
+            <Link
+              href="/admin/login"
+              onClick={close}
+              className="mt-3 justify-center text-center py-3 text-sm font-body font-medium rounded-md transition-colors"
+              style={{ color: "rgba(255,255,255,0.45)", border: "1px solid rgba(255,255,255,0.12)" }}
+            >
+              Staff Login
             </Link>
 
             {/* Contact hint */}

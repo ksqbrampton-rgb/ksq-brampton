@@ -1,24 +1,7 @@
 import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
-
-// Dev credentials — active when no Supabase DB is connected.
-// TODO Phase 3 DB: replace DEV_USERS with a bcrypt check against the StaffUser table.
-const DEV_USERS = [
-  {
-    id: "dev-super-admin",
-    email: "admin@ksqbrampton.ca",
-    password: "Admin1234!",
-    name: "Admin User",
-    role: "SUPER_ADMIN",
-  },
-  {
-    id: "dev-officer",
-    email: "officer@ksqbrampton.ca",
-    password: "Officer1234!",
-    name: "Enrollment Officer",
-    role: "OFFICER",
-  },
-];
+import bcrypt from "bcryptjs";
+import { db } from "./db";
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
   providers: [
@@ -30,20 +13,38 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) return null;
 
-        // TODO Phase 3 DB: swap dev check for:
-        // const staff = await db.staffUser.findUnique({ where: { email: credentials.email } });
-        // if (!staff || !staff.isActive) return null;
-        // const valid = await bcrypt.compare(credentials.password as string, staff.passwordHash);
-        // if (!valid) return null;
-        // return { id: staff.id, email: staff.email, name: `${staff.firstName} ${staff.lastName}`, role: staff.role };
+        const email = credentials.email as string;
+        const password = credentials.password as string;
 
-        const user = DEV_USERS.find(
-          (u) =>
-            u.email === credentials.email &&
-            u.password === credentials.password
-        );
-        if (!user) return null;
-        return { id: user.id, email: user.email, name: user.name, role: user.role };
+        // 1. Try real DB first
+        try {
+          const staff = await db.staffUser.findUnique({ where: { email } });
+          if (staff && staff.isActive) {
+            const valid = await bcrypt.compare(password, staff.passwordHash);
+            if (valid) {
+              return {
+                id: staff.id,
+                email: staff.email,
+                name: `${staff.firstName} ${staff.lastName}`,
+                role: staff.role,
+              };
+            }
+          }
+          // If DB lookup ran but credentials didn't match, reject
+          if (staff) return null;
+        } catch {
+          // DB unreachable — fall through to dev credentials
+        }
+
+        // 2. Dev fallback — only active when no DB record exists
+        const DEV_USERS = [
+          { id: "dev-super-admin", email: "admin@ksqbrampton.ca", password: "Admin1234!", name: "Admin User", role: "SUPER_ADMIN" },
+          { id: "dev-officer", email: "officer@ksqbrampton.ca", password: "Officer1234!", name: "Enrollment Officer", role: "OFFICER" },
+        ];
+        const devUser = DEV_USERS.find(u => u.email === email && u.password === password);
+        if (devUser) return { id: devUser.id, email: devUser.email, name: devUser.name, role: devUser.role };
+
+        return null;
       },
     }),
   ],
@@ -66,8 +67,5 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       return session;
     },
   },
-  session: {
-    strategy: "jwt",
-    maxAge: 8 * 60 * 60, // 8 hours
-  },
+  session: { strategy: "jwt", maxAge: 8 * 60 * 60 },
 });
