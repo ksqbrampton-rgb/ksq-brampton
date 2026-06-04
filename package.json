@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "prisma generate && next build",
+    "build": "next build",
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
@@ -25,7 +25,7 @@
     "@radix-ui/react-toast": "^1.2.1",
     "@react-email/components": "^1.0.12",
     "@supabase/supabase-js": "^2.107.0",
-    "@types/bcryptjs": "^3.0.0",
+    "@types/bcryptjs": "^2.4.6",
     "@upstash/ratelimit": "^2.0.8",
     "@upstash/redis": "^1.38.0",
     "bcryptjs": "^3.0.3",
@@ -38,6 +38,7 @@
     "react-dom": "^18.3.1",
     "recharts": "^3.8.1",
     "resend": "^6.12.4",
+    "svix": "^1.95.1",
     "tailwind-merge": "^2.4.0",
     "tailwindcss-animate": "^1.0.7"
   },
