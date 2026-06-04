@@ -40,6 +40,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   }, [pathname]);
 
   if (pathname === "/admin/login") return <>{children}</>;
+  if (pathname === "/admin/register") return <>{children}</>;
+  if (pathname.startsWith("/admin/forgot-password")) return <>{children}</>;
+  if (pathname.startsWith("/admin/reset-password")) return <>{children}</>;
 
   if (status === "loading") {
     return (
