@@ -3,18 +3,33 @@ import { render } from "@react-email/components";
 import { SITE } from "./constants";
 import { buildGoogleCalendarUrl, buildAppointmentCalendarParams } from "./booking";
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+// Initialise lazily so env vars are always available at call time
+function getResend() {
+  const key = process.env.RESEND_API_KEY;
+  if (!key) throw new Error("RESEND_API_KEY is not set");
+  return new Resend(key);
+}
 
-const FROM = process.env.EMAIL_FROM ?? `info@${SITE.domain}`;
+function getFrom() {
+  return process.env.EMAIL_FROM ?? `info@${SITE.domain}`;
+}
+
 const MANAGER_EMAIL = process.env.EMAIL_FROM ?? `info@${SITE.domain}`;
 
 async function send(to: string, subject: string, template: React.ReactElement) {
   const html = await render(template);
-  const { error } = await resend.emails.send({ from: FROM, to, subject, html });
+  const resend = getResend();
+  const { data, error } = await resend.emails.send({
+    from: getFrom(),
+    to,
+    subject,
+    html,
+  });
   if (error) {
-    console.error("[email] Send error:", error);
+    console.error("[email] Send error:", JSON.stringify(error));
     throw new Error(`Email send failed: ${error.message}`);
   }
+  console.log("[email] Sent successfully:", data?.id, "→", to);
 }
 
 // ─── Booking Confirmed ─────────────────────────────────────

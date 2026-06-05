@@ -55,7 +55,7 @@ export async function POST(request: Request) {
   const appointmentDate = formatDateDisplay(slotDate);
   const appointmentTime = formatSlotTime(body.slotStart);
 
-  // Send confirmation email — fire and forget
+  // Send confirmation email — fire and forget but log errors
   sendBookingConfirmed({
     to: body.email!,
     guestName,
@@ -63,7 +63,11 @@ export async function POST(request: Request) {
     appointmentDate,
     appointmentTime,
     slotIso: body.slotStart,
-  }).catch(err => console.error("[book] Email send failed:", err));
+  }).then(() => {
+    console.log("[book] Confirmation email sent to:", body.email);
+  }).catch(err => {
+    console.error("[book] FAILED to send confirmation email:", err?.message ?? err);
+  });
 
   return NextResponse.json({
     success: true,
