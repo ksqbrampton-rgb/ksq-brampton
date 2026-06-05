@@ -1,4 +1,4 @@
-import { STATUS_LABELS, STATUS_COLORS, type AppStatus } from "@/lib/mock-data";
+import { STATUS_LABELS, STATUS_COLORS, type AppStatus } from "@/lib/types";
 
 interface Props {
   status: AppStatus;
@@ -6,8 +6,8 @@ interface Props {
 }
 
 export default function StatusBadge({ status, size = "md" }: Props) {
-  const colors = STATUS_COLORS[status];
-  const label = STATUS_LABELS[status];
+  const colors = STATUS_COLORS[status] ?? STATUS_COLORS.CANCELLED;
+  const label  = STATUS_LABELS[status]  ?? status;
 
   return (
     <span
@@ -19,14 +19,7 @@ export default function StatusBadge({ status, size = "md" }: Props) {
         fontSize: size === "sm" ? "0.7rem" : "0.75rem",
       }}
     >
-      <span
-        className="rounded-full flex-shrink-0"
-        style={{
-          background: colors.dot,
-          width: size === "sm" ? "5px" : "6px",
-          height: size === "sm" ? "5px" : "6px",
-        }}
-      />
+      <span className="rounded-full flex-shrink-0" style={{ background: colors.dot, width: size === "sm" ? "5px" : "6px", height: size === "sm" ? "5px" : "6px" }} />
       {label}
     </span>
   );
