@@ -78,7 +78,7 @@ export async function POST(request: Request) {
       persisted = await db.$transaction(async (tx) => {
         // 1. Serialize concurrent bookings for this exact slot. Transaction-scoped
         //    advisory lock — auto-released on commit/rollback, pooler-safe.
-        await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${body.slotStart!}))`;
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${body.slotStart!}))`;
 
         // 2. Slot already taken? (anything not cancelled occupies it)
         const taken = await tx.appointment.findFirst({
