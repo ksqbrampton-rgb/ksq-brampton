@@ -288,9 +288,7 @@ model StaffUser {
 }
 
 model EmailLog {
-  id            String   @id @default(cuid())
-  guestId       String
-  guest         Guest    @relation(fields: [guestId], references: [id])
+  id            String    @id @default(cuid())
   applicationId String?
   eventType     String
   subject       String
@@ -300,7 +298,11 @@ model EmailLog {
   openedAt      DateTime?
   bouncedAt     DateTime?
   failReason    String?
-  createdAt     DateTime @default(now())
+  lastEvent     String?
+  lastEventAt   DateTime?
+  guestId       String?
+  guest         Guest?    @relation(fields: [guestId], references: [id])
+  createdAt     DateTime  @default(now())
 
   @@map("email_logs")
 }

@@ -2,6 +2,7 @@ import { Resend } from "resend";
 import { render } from "@react-email/components";
 import { SITE } from "./constants";
 import { buildGoogleCalendarUrl, buildAppointmentCalendarParams } from "./booking";
+import { db } from "./db";
 
 // Initialise lazily so env vars are always available at call time
 function getResend() {
@@ -16,20 +17,32 @@ function getFrom() {
 
 const MANAGER_EMAIL = process.env.EMAIL_FROM ?? `info@${SITE.domain}`;
 
-async function send(to: string, subject: string, template: React.ReactElement) {
+interface EmailMeta { eventType: string; guestId?: string; applicationId?: string; }
+
+async function send(to: string, subject: string, template: React.ReactElement, meta: EmailMeta) {
   const html = await render(template);
   const resend = getResend();
-  const { data, error } = await resend.emails.send({
-    from: getFrom(),
-    to,
-    subject,
-    html,
-  });
+  const { data, error } = await resend.emails.send({ from: getFrom(), to, subject, html });
   if (error) {
     console.error("[email] Send error:", JSON.stringify(error));
     throw new Error(`Email send failed: ${error.message}`);
   }
   console.log("[email] Sent successfully:", data?.id, "→", to);
+
+  try {
+    await db.emailLog.create({
+      data: {
+        guestId: meta.guestId ?? null,
+        applicationId: meta.applicationId ?? null,
+        eventType: meta.eventType,
+        subject,
+        resendId: data?.id ?? null,
+        sentAt: new Date(),
+      },
+    });
+  } catch (logErr) {
+    console.error("[email] EmailLog write failed:", logErr);
+  }
 }
 
 // ─── Booking Confirmed ─────────────────────────────────────
@@ -54,7 +67,8 @@ export async function sendBookingConfirmed(params: {
       appointmentDate={params.appointmentDate}
       appointmentTime={params.appointmentTime}
       googleCalendarUrl={googleCalendarUrl}
-    />
+    />,
+    { eventType: "BOOKING_CONFIRMED" }
   );
 }
 
@@ -76,7 +90,8 @@ export async function sendBookingCancelled(params: {
       appointmentDate={params.appointmentDate}
       appointmentTime={params.appointmentTime}
       rebookUrl={rebookUrl}
-    />
+    />,
+    { eventType: "BOOKING_CANCELLED" }
   );
 }
 
@@ -102,7 +117,8 @@ export async function sendBookingRescheduled(params: {
       newTime={params.newTime}
       oldDate={params.oldDate}
       oldTime={params.oldTime}
-    />
+    />,
+    { eventType: "BOOKING_RESCHEDULED" }
   );
 }
 
@@ -124,7 +140,8 @@ export async function sendReminder48h(params: {
       applicationRef={params.applicationRef}
       appointmentDate={params.appointmentDate}
       appointmentTime={params.appointmentTime}
-    />
+    />,
+    { eventType: "REMINDER_48H" }
   );
 }
 
@@ -146,7 +163,8 @@ export async function sendReminder2h(params: {
       applicationRef={params.applicationRef}
       appointmentDate={params.appointmentDate}
       appointmentTime={params.appointmentTime}
-    />
+    />,
+    { eventType: "REMINDER_2H" }
   );
 }
 
@@ -168,7 +186,8 @@ export async function sendNoShow(params: {
       appointmentDate={params.appointmentDate}
       appointmentTime={params.appointmentTime}
       rebookUrl={rebookUrl}
-    />
+    />,
+    { eventType: "NO_SHOW" }
   );
 }
 
@@ -183,7 +202,8 @@ export async function sendBiometricsCaptured(params: {
   await send(
     params.to,
     "Biometrics Captured — Your NIN is Being Processed",
-    <Template guestName={params.guestName} applicationRef={params.applicationRef} />
+    <Template guestName={params.guestName} applicationRef={params.applicationRef} />,
+    { eventType: "BIOMETRICS_CAPTURED" }
   );
 }
 
@@ -198,7 +218,8 @@ export async function sendNinIssued(params: {
   await send(
     params.to,
     "Your NIN is Ready — Collection Instructions",
-    <Template guestName={params.guestName} applicationRef={params.applicationRef} />
+    <Template guestName={params.guestName} applicationRef={params.applicationRef} />,
+    { eventType: "NIN_ISSUED" }
   );
 }
 
@@ -215,7 +236,7 @@ export async function sendContactFormEmails(params: {
   const submittedAt = new Date().toLocaleString("en-CA", { timeZone: "America/Toronto" });
 
   await Promise.all([
-    send(params.email, "We Received Your Message — Knowledge Square", <GuestTemplate name={params.name} message={params.message} />),
-    send(MANAGER_EMAIL, `New Contact Form: ${params.name}`, <ManagerTemplate {...params} submittedAt={submittedAt} />),
+    send(params.email, "We Received Your Message — Knowledge Square", <GuestTemplate name={params.name} message={params.message} />, { eventType: "CONTACT_FORM_GUEST" }),
+    send(MANAGER_EMAIL, `New Contact Form: ${params.name}`, <ManagerTemplate {...params} submittedAt={submittedAt} />, { eventType: "CONTACT_FORM_MANAGER" }),
   ]);
 }

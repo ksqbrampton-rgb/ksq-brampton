@@ -1,17 +1,14 @@
 import { NextResponse } from "next/server";
 import { Webhook } from "svix";
+import { db } from "@/lib/db";
 
 /**
  * POST /api/webhooks/resend
  * Receives delivery status events from Resend.
  * Secured by RESEND_WEBHOOK_SECRET (Svix signature verification).
  *
- * Events handled:
- *   email.sent       → log delivery attempt
- *   email.delivered  → mark delivered
- *   email.bounced    → flag in EmailLog, alert
- *   email.opened     → record open timestamp
- *   email.clicked    → record click
+ * Matches each event to its EmailLog row by resendId and updates the
+ * lifecycle timestamp. Every event also stamps lastEvent / lastEventAt.
  */
 export async function POST(request: Request) {
   const secret = process.env.RESEND_WEBHOOK_SECRET;
@@ -58,38 +55,36 @@ interface ResendWebhookEvent {
 
 async function handleEvent(event: ResendWebhookEvent) {
   const { type, data } = event;
-  const emailId = data.email_id ?? "unknown";
+  const emailId = data.email_id;
 
-  console.log(`[webhook/resend] Event: ${type} | ID: ${emailId}`);
+  console.log(`[webhook/resend] Event: ${type} | ID: ${emailId ?? "unknown"}`);
 
-  // TODO Phase DB: update EmailLog table based on event type
-  // Example:
-  // switch (type) {
-  //   case "email.delivered":
-  //     await db.emailLog.updateMany({ where: { resendId: emailId }, data: { deliveredAt: new Date() } });
-  //     break;
-  //   case "email.bounced":
-  //     await db.emailLog.updateMany({ where: { resendId: emailId }, data: { bouncedAt: new Date(), failReason: "bounced" } });
-  //     break;
-  //   case "email.opened":
-  //     await db.emailLog.updateMany({ where: { resendId: emailId }, data: { openedAt: new Date() } });
-  //     break;
-  // }
+  if (!emailId) return; // inbound / domain / contact events — nothing to match
 
+  const now = new Date();
+
+  // Every event records the latest event on the matching row(s)
+  await db.emailLog.updateMany({
+    where: { resendId: emailId },
+    data: { lastEvent: type, lastEventAt: now },
+  });
+
+  // Lifecycle timestamps are set once — the `: null` guard prevents a late or
+  // duplicate event from overwriting an earlier one (events can arrive out of order)
   switch (type) {
-    case "email.sent":
-      console.log(`[webhook/resend] ✓ Sent to: ${data.to?.join(", ")}`);
-      break;
     case "email.delivered":
-      console.log(`[webhook/resend] ✓ Delivered: ${emailId}`);
-      break;
-    case "email.bounced":
-      console.error(`[webhook/resend] ✗ Bounced: ${emailId} — to: ${data.to?.join(", ")}`);
+      await db.emailLog.updateMany({ where: { resendId: emailId, deliveredAt: null }, data: { deliveredAt: now } });
       break;
     case "email.opened":
-      console.log(`[webhook/resend] ✓ Opened: ${emailId}`);
+      await db.emailLog.updateMany({ where: { resendId: emailId, openedAt: null }, data: { openedAt: now } });
+      break;
+    case "email.bounced":
+      await db.emailLog.updateMany({ where: { resendId: emailId, bouncedAt: null }, data: { bouncedAt: now, failReason: "bounced" } });
+      break;
+    case "email.failed":
+      await db.emailLog.updateMany({ where: { resendId: emailId }, data: { failReason: "failed" } });
       break;
     default:
-      console.log(`[webhook/resend] Unhandled event type: ${type}`);
+      break; // clicked / complained / delivery_delayed / scheduled / suppressed — captured above
   }
 }
