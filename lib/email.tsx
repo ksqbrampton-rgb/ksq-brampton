@@ -54,6 +54,8 @@ export async function sendBookingConfirmed(params: {
   appointmentDate: string;
   appointmentTime: string;
   slotIso: string;
+  guestId?: string;
+  applicationId?: string;
 }) {
   const { default: Template } = await import("@/emails/booking-confirmed");
   const calParams = buildAppointmentCalendarParams(params.slotIso, params.applicationRef);
@@ -68,7 +70,7 @@ export async function sendBookingConfirmed(params: {
       appointmentTime={params.appointmentTime}
       googleCalendarUrl={googleCalendarUrl}
     />,
-    { eventType: "BOOKING_CONFIRMED" }
+    { eventType: "BOOKING_CONFIRMED", guestId: params.guestId, applicationId: params.applicationId }
   );
 }
 
