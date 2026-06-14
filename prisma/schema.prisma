@@ -136,7 +136,8 @@ model SlotBlock {
 model Guest {
   id           String   @id @default(cuid())
   email        String   // encrypted (AES-256-GCM)
-  emailHash    String   @unique // HMAC-SHA256 blind index for lookupfirstName    String
+  emailHash    String   @unique // HMAC-SHA256 blind index for lookup
+  firstName    String
   lastName     String
   phone        String? // encrypted at field level
   noShowCount  Int      @default(0)
