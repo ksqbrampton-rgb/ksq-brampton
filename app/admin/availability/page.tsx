@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
+import { getHolidaysForYear } from "@/lib/holidays";
 
 const API = "/api/admin/data/availability";
 
@@ -96,6 +97,44 @@ export default function AvailabilityPage() {
   const [newDate, setNewDate] = useState("");
   const [newReason, setNewReason] = useState("");
   const [newClosed, setNewClosed] = useState(true);
+
+  // Holiday picker
+  const thisYear = new Date().getFullYear();
+  const yearOptions = [thisYear, thisYear + 1, thisYear + 2];
+  const [pickYear, setPickYear] = useState(thisYear);
+  const [pickHolidayKey, setPickHolidayKey] = useState("");
+  const holidaysForYear = useMemo(() => getHolidaysForYear(pickYear), [pickYear]);
+
+  function selectHoliday(key: string) {
+    setPickHolidayKey(key);
+    if (!key) return; // "Custom" — leave the form for manual entry
+    const h = holidaysForYear.find(x => x.key === key);
+    if (h) {
+      setNewDate(h.date);
+      setNewReason(h.name);
+      setNewClosed(true);
+      setSaved(false);
+    }
+  }
+
+  function changePickYear(year: number) {
+    setPickYear(year);
+    if (pickHolidayKey) {
+      const h = getHolidaysForYear(year).find(x => x.key === pickHolidayKey);
+      if (h) { setNewDate(h.date); setNewReason(h.name); }
+    }
+  }
+
+  function addAllHolidays() {
+    setExceptions(prev => {
+      const existing = new Set(prev.map(e => e.date));
+      const toAdd = getHolidaysForYear(pickYear)
+        .filter(h => !existing.has(h.date))
+        .map(h => ({ id: `new-${h.date}`, date: h.date, isClosed: true, reason: h.name }));
+      return [...prev, ...toAdd];
+    });
+    setSaved(false);
+  }
 
   const applyState = useCallback((data: ApiState) => {
     setSchedule(scheduleFromApi(data.schedule ?? []));
@@ -350,6 +389,36 @@ export default function AvailabilityPage() {
         {/* Add new exception */}
         <div className="p-4 rounded-lg space-y-3" style={{ background: "var(--light)", border: "1px solid rgba(26,74,46,0.08)" }}>
           <p className="text-xs font-body font-semibold uppercase tracking-wide" style={{ color: "var(--green)" }}>Add Exception</p>
+
+          {/* Holiday quick-pick */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-body font-medium uppercase tracking-wide mb-1" style={{ color: "var(--mid)" }}>Year</label>
+              <select
+                value={pickYear}
+                onChange={e => changePickYear(Number(e.target.value))}
+                className="w-full px-3 py-2 rounded-lg text-sm font-body outline-none"
+                style={{ border: "1px solid rgba(26,74,46,0.12)", background: "white", color: "var(--dark)" }}
+              >
+                {yearOptions.map(y => <option key={y} value={y}>{y}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-body font-medium uppercase tracking-wide mb-1" style={{ color: "var(--mid)" }}>Holiday</label>
+              <select
+                value={pickHolidayKey}
+                onChange={e => selectHoliday(e.target.value)}
+                className="w-full px-3 py-2 rounded-lg text-sm font-body outline-none"
+                style={{ border: "1px solid rgba(26,74,46,0.12)", background: "white", color: "var(--dark)" }}
+              >
+                <option value="">Custom / other…</option>
+                {holidaysForYear.map(h => (
+                  <option key={h.key} value={h.key}>{h.name} — {formatExceptionDate(h.date)}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-body font-medium uppercase tracking-wide mb-1" style={{ color: "var(--mid)" }}>Date</label>
@@ -384,14 +453,23 @@ export default function AvailabilityPage() {
               <span className="text-sm font-body" style={{ color: "var(--dark)" }}>Full closure</span>
             </label>
           </div>
-          <button
-            onClick={addException}
-            disabled={!newDate || !newReason}
-            className="px-4 py-2 rounded-lg text-sm font-body font-medium transition-colors disabled:opacity-40"
-            style={{ background: "var(--green)", color: "white" }}
-          >
-            Add Exception
-          </button>
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              onClick={addException}
+              disabled={!newDate || !newReason}
+              className="px-4 py-2 rounded-lg text-sm font-body font-medium transition-colors disabled:opacity-40"
+              style={{ background: "var(--green)", color: "white" }}
+            >
+              Add Exception
+            </button>
+            <button
+              onClick={addAllHolidays}
+              className="px-4 py-2 rounded-lg text-sm font-body font-medium transition-colors"
+              style={{ background: "rgba(26,74,46,0.08)", color: "var(--green)", border: "1px solid rgba(26,74,46,0.15)" }}
+            >
+              Add all {pickYear} holidays
+            </button>
+          </div>
         </div>
         <p className="text-xs font-body mt-3" style={{ color: "var(--mid)" }}>
           Exceptions are saved when you click <span style={{ fontWeight: 600 }}>Save Changes</span> above.
