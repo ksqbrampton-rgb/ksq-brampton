@@ -1,7 +1,23 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { requireAdminSession } from "@/lib/adminAuth";
-import { encrypt, withDecryptedGuest, withDecryptedNin } from "@/lib/encryption";
+import { encrypt, decryptNullable, withDecryptedGuest, withDecryptedNin } from "@/lib/encryption";
+import { sendNinIssued } from "@/lib/email";
+
+function maskNin(nin: string): string {
+  const trimmed = nin.trim();
+  if (trimmed.length <= 4) return trimmed;
+  return "*".repeat(trimmed.length - 4) + trimmed.slice(-4);
+}
+
+function formatIssuedDate(date: Date): string {
+  return date.toLocaleDateString("en-CA", {
+    timeZone: "America/Toronto",
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  });
+}
 
 export async function GET(
   _request: Request,
@@ -99,6 +115,24 @@ export async function PATCH(
     }
 
     const out = withDecryptedNin({ ...updated, guest: withDecryptedGuest(updated.guest) });
+
+    // On first NIN issuance, email the guest (masked NIN + collection details).
+    // Fire-and-forget — a mail failure must not fail the issuance write.
+    if (body.ninNumber && existing.ninIssuedAt == null) {
+      const to = decryptNullable(updated.guest.email);
+      if (to) {
+        sendNinIssued({
+          to,
+          guestName: `${updated.guest.firstName} ${updated.guest.lastName}`,
+          applicationRef: updated.applicationRef,
+          maskedNin: maskNin(body.ninNumber),
+          issuedDate: formatIssuedDate(updated.ninIssuedAt ?? new Date()),
+          guestId: updated.guest.id,
+          applicationId: updated.id,
+        }).catch((err) => console.error("[admin/applications] NIN issued email failed:", err));
+      }
+    }
+
     return NextResponse.json({ application: out });
   } catch (err) {
     console.error("[admin/applications/patch]", err);

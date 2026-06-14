@@ -45,7 +45,7 @@ async function send(to: string, subject: string, template: React.ReactElement, m
   }
 }
 
-// ─── Booking Confirmed ─────────────────────────────────────
+// ─── Booking Confirmed ───────────────────────────────────────
 
 export async function sendBookingConfirmed(params: {
   to: string;
@@ -74,7 +74,7 @@ export async function sendBookingConfirmed(params: {
   );
 }
 
-// ─── Booking Cancelled ─────────────────────────────────────
+// ─── Booking Cancelled ───────────────────────────────────────
 
 export async function sendBookingCancelled(params: {
   to: string;
@@ -97,7 +97,7 @@ export async function sendBookingCancelled(params: {
   );
 }
 
-// ─── Booking Rescheduled ───────────────────────────────────
+// ─── Booking Rescheduled ─────────────────────────────────────
 
 export async function sendBookingRescheduled(params: {
   to: string;
@@ -124,7 +124,7 @@ export async function sendBookingRescheduled(params: {
   );
 }
 
-// ─── Reminder 48h ─────────────────────────────────────────
+// ─── Reminder 48h ────────────────────────────────────────────
 
 export async function sendReminder48h(params: {
   to: string;
@@ -147,7 +147,7 @@ export async function sendReminder48h(params: {
   );
 }
 
-// ─── Reminder 2h ──────────────────────────────────────────
+// ─── Reminder 2h ─────────────────────────────────────────────
 
 export async function sendReminder2h(params: {
   to: string;
@@ -170,7 +170,7 @@ export async function sendReminder2h(params: {
   );
 }
 
-// ─── No Show ──────────────────────────────────────────────
+// ─── No Show ─────────────────────────────────────────────────
 
 export async function sendNoShow(params: {
   to: string;
@@ -193,7 +193,7 @@ export async function sendNoShow(params: {
   );
 }
 
-// ─── Biometrics Captured ──────────────────────────────────
+// ─── Biometrics Captured ─────────────────────────────────────
 
 export async function sendBiometricsCaptured(params: {
   to: string;
@@ -209,23 +209,32 @@ export async function sendBiometricsCaptured(params: {
   );
 }
 
-// ─── NIN Issued ───────────────────────────────────────────
+// ─── NIN Issued ──────────────────────────────────────────────
 
 export async function sendNinIssued(params: {
   to: string;
   guestName: string;
   applicationRef: string;
+  maskedNin: string;
+  issuedDate: string;
+  guestId?: string;
+  applicationId?: string;
 }) {
   const { default: Template } = await import("@/emails/nin-issued");
   await send(
     params.to,
     "Your NIN is Ready — Collection Instructions",
-    <Template guestName={params.guestName} applicationRef={params.applicationRef} />,
-    { eventType: "NIN_ISSUED" }
+    <Template
+      guestName={params.guestName}
+      applicationRef={params.applicationRef}
+      maskedNin={params.maskedNin}
+      issuedDate={params.issuedDate}
+    />,
+    { eventType: "NIN_ISSUED", guestId: params.guestId, applicationId: params.applicationId }
   );
 }
 
-// ─── Contact Form ─────────────────────────────────────────
+// ─── Contact Form ────────────────────────────────────────────
 
 export async function sendContactFormEmails(params: {
   name: string;

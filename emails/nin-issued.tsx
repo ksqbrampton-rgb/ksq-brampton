@@ -4,9 +4,11 @@ import { SITE } from "@/lib/constants";
 interface Props {
   guestName: string;
   applicationRef: string;
+  maskedNin: string;
+  issuedDate: string;
 }
 
-export default function NinIssuedEmail({ guestName, applicationRef }: Props) {
+export default function NinIssuedEmail({ guestName, applicationRef, maskedNin, issuedDate }: Props) {
   return (
     <BaseEmail preview="Your NIN has been issued — collection instructions inside">
       <EmailHeading>Your NIN is Ready</EmailHeading>
@@ -18,6 +20,8 @@ export default function NinIssuedEmail({ guestName, applicationRef }: Props) {
       <EmailRefBadge ref={applicationRef} />
 
       <EmailInfoBox>
+        <EmailInfoRow label="NIN (masked)" value={maskedNin} />
+        <EmailInfoRow label="Date Issued" value={issuedDate} />
         <EmailInfoRow label="Collection Address" value={`${SITE.address.line1}, ${SITE.address.city}, Ontario`} />
         <EmailInfoRow label="Hours (Mon–Fri)" value="9:00 AM – 5:00 PM" />
         <EmailInfoRow label="Hours (Saturday)" value="10:00 AM – 3:00 PM" />
@@ -25,7 +29,7 @@ export default function NinIssuedEmail({ guestName, applicationRef }: Props) {
       </EmailInfoBox>
 
       <EmailBody>
-        Please bring a valid ID and quote your booking reference when collecting your NIN slip.
+        For your security, only part of your NIN is shown here. Your full NIN slip will be handed to you when you collect it in person — please bring a valid ID and quote your booking reference.
       </EmailBody>
 
       <EmailBody style={{ fontSize: "12px", color: "rgba(74,101,88,0.7)" }}>
