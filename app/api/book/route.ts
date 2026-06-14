@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { generateBookingRef, validateBookingForm, type BookingPayload } from "@/lib/booking";
-import { isDateBookable, formatSlotTime, generateSlotsForDate, SLOT_DURATION_MINUTES } from "@/lib/slots";
+import { formatSlotTime, validateBookableSlot } from "@/lib/slots";
 import { sendBookingConfirmed } from "@/lib/email";
 import { bookingLimiter, checkRateLimit, getClientIp } from "@/lib/ratelimit";
 
@@ -14,7 +14,7 @@ function formatDateDisplay(date: Date): string {
 
 // Thrown inside the transaction, mapped to a friendly response after rollback
 class BookingError extends Error {
-  constructor(public code: "SLOT_TAKEN" | "DUPLICATE") {
+  constructor(public code: "SLOT_TAKEN" | "DUPLICATE" | "DAY_FULL") {
     super(code);
   }
 }
@@ -56,17 +56,16 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid slot time." }, { status: 400 });
   }
 
-  if (!isDateBookable(slotDate)) {
-    return NextResponse.json({ error: "The selected date is not available." }, { status: 409 });
-  }
-
-  // Reject anything the slot picker would never offer (off-grid time, past slot)
-  if (!generateSlotsForDate(slotDate).includes(body.slotStart)) {
+  // Validate the slot against the live DB-driven schedule — the same source the
+  // picker uses (template + exceptions + blocks + future + cap). Also returns
+  // the day's capacity + bounds for the in-transaction cap check below.
+  const slot = await validateBookableSlot(body.slotStart);
+  if (!slot.ok) {
     return NextResponse.json({ error: "The selected time slot is not available." }, { status: 409 });
   }
 
   const guestName = `${body.firstName} ${body.lastName}`.trim();
-  const slotEnd = new Date(slotDate.getTime() + SLOT_DURATION_MINUTES * 60 * 1000);
+  const slotEnd = new Date(slotDate.getTime() + slot.slotDuration * 60 * 1000);
 
   // Persist Guest + Application + Appointment atomically.
   // Retry only if the random applicationRef collides on its unique constraint.
@@ -86,6 +85,13 @@ export async function POST(request: Request) {
           select: { id: true },
         });
         if (taken) throw new BookingError("SLOT_TAKEN");
+
+        // 2b. Best-effort daily cap. The visible cap lives in /api/slots; this
+        //     catches a day that filled between page load and submit.
+        const dayCount = await tx.appointment.count({
+          where: { slotStart: { gte: slot.dayStart, lt: slot.dayEnd }, status: { not: "CANCELLED" } },
+        });
+        if (dayCount >= slot.maxPerDay) throw new BookingError("DAY_FULL");
 
         // 3. Upsert the guest by email (create first time, refresh name/phone on return)
         const guest = await tx.guest.upsert({
@@ -137,6 +143,12 @@ export async function POST(request: Request) {
         if (err.code === "SLOT_TAKEN") {
           return NextResponse.json(
             { error: "That time slot is no longer available. Please choose another." },
+            { status: 409 }
+          );
+        }
+        if (err.code === "DAY_FULL") {
+          return NextResponse.json(
+            { error: "All appointments for that day are now full. Please choose another date." },
             { status: 409 }
           );
         }
