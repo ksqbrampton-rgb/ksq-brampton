@@ -1,6 +1,19 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
+
+const API = "/api/admin/data/availability";
+
+const DAY_LABELS: Record<string, string> = {
+  MONDAY: "Monday",
+  TUESDAY: "Tuesday",
+  WEDNESDAY: "Wednesday",
+  THURSDAY: "Thursday",
+  FRIDAY: "Friday",
+  SATURDAY: "Saturday",
+  SUNDAY: "Sunday",
+};
+const DAY_ORDER = ["MONDAY","TUESDAY","WEDNESDAY","THURSDAY","FRIDAY","SATURDAY","SUNDAY"];
 
 interface DayConfig {
   day: string;
@@ -9,16 +22,6 @@ interface DayConfig {
   openTime: string;
   closeTime: string;
 }
-
-const INITIAL_SCHEDULE: DayConfig[] = [
-  { day: "MONDAY",    label: "Monday",    isOpen: true,  openTime: "09:00", closeTime: "17:00" },
-  { day: "TUESDAY",   label: "Tuesday",   isOpen: true,  openTime: "09:00", closeTime: "17:00" },
-  { day: "WEDNESDAY", label: "Wednesday", isOpen: true,  openTime: "09:00", closeTime: "17:00" },
-  { day: "THURSDAY",  label: "Thursday",  isOpen: true,  openTime: "09:00", closeTime: "17:00" },
-  { day: "FRIDAY",    label: "Friday",    isOpen: true,  openTime: "09:00", closeTime: "17:00" },
-  { day: "SATURDAY",  label: "Saturday",  isOpen: true,  openTime: "10:00", closeTime: "15:00" },
-  { day: "SUNDAY",    label: "Sunday",    isOpen: false, openTime: "10:00", closeTime: "15:00" },
-];
 
 interface DateException {
   id: string;
@@ -29,10 +32,51 @@ interface DateException {
   closeTime?: string;
 }
 
-const INITIAL_EXCEPTIONS: DateException[] = [
-  { id: "exc-1", date: "2026-07-01", isClosed: true, reason: "Canada Day" },
-  { id: "exc-2", date: "2026-08-03", isClosed: true, reason: "Civic Holiday" },
-];
+// ── API <-> UI mapping ──
+
+interface ApiScheduleDay {
+  dayOfWeek: string;
+  isOpen: boolean;
+  openTime: string | null;
+  closeTime: string | null;
+}
+interface ApiException {
+  id: string;
+  date: string;
+  isClosed: boolean;
+  openTime: string | null;
+  closeTime: string | null;
+  reason: string | null;
+}
+interface ApiState {
+  schedule: ApiScheduleDay[];
+  exceptions: ApiException[];
+}
+
+function scheduleFromApi(rows: ApiScheduleDay[]): DayConfig[] {
+  const byDay = new Map(rows.map((r) => [r.dayOfWeek, r]));
+  return DAY_ORDER.map((day) => {
+    const r = byDay.get(day);
+    return {
+      day,
+      label: DAY_LABELS[day] ?? day,
+      isOpen: r?.isOpen ?? false,
+      openTime: r?.openTime ?? "09:00",
+      closeTime: r?.closeTime ?? "17:00",
+    };
+  });
+}
+
+function exceptionsFromApi(rows: ApiException[]): DateException[] {
+  return rows.map((r) => ({
+    id: r.id,
+    date: r.date,
+    isClosed: r.isClosed,
+    reason: r.reason ?? "",
+    openTime: r.openTime ?? undefined,
+    closeTime: r.closeTime ?? undefined,
+  }));
+}
 
 function formatExceptionDate(iso: string) {
   const d = new Date(iso + "T12:00:00");
@@ -40,14 +84,42 @@ function formatExceptionDate(iso: string) {
 }
 
 export default function AvailabilityPage() {
-  const [schedule, setSchedule] = useState<DayConfig[]>(INITIAL_SCHEDULE);
-  const [exceptions, setExceptions] = useState<DateException[]>(INITIAL_EXCEPTIONS);
+  const [schedule, setSchedule] = useState<DayConfig[]>([]);
+  const [exceptions, setExceptions] = useState<DateException[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
 
   // New exception form
   const [newDate, setNewDate] = useState("");
   const [newReason, setNewReason] = useState("");
   const [newClosed, setNewClosed] = useState(true);
+
+  const applyState = useCallback((data: ApiState) => {
+    setSchedule(scheduleFromApi(data.schedule ?? []));
+    setExceptions(exceptionsFromApi(data.exceptions ?? []));
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      try {
+        const res = await fetch(API);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = (await res.json()) as ApiState;
+        if (active) applyState(data);
+      } catch {
+        if (active) setLoadError("Could not load availability. Please refresh.");
+      } finally {
+        if (active) setLoading(false);
+      }
+    })();
+    return () => {
+      active = false;
+    };
+  }, [applyState]);
 
   function toggleDay(index: number) {
     setSchedule(s => s.map((d, i) => i === index ? { ...d, isOpen: !d.isOpen } : d));
@@ -63,21 +135,59 @@ export default function AvailabilityPage() {
     if (!newDate || !newReason) return;
     setExceptions(e => [
       ...e,
-      { id: `exc-${Date.now()}`, date: newDate, isClosed: newClosed, reason: newReason },
+      { id: `new-${Date.now()}`, date: newDate, isClosed: newClosed, reason: newReason },
     ]);
     setNewDate("");
     setNewReason("");
     setNewClosed(true);
+    setSaved(false);
   }
 
   function removeException(id: string) {
     setExceptions(e => e.filter(ex => ex.id !== id));
+    setSaved(false);
   }
 
-  function save() {
-    // TODO Phase 3 DB: persist to AvailabilityTemplate + DateException tables
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2500);
+  async function save() {
+    setSaving(true);
+    setSaveError(null);
+    setSaved(false);
+    try {
+      const res = await fetch(API, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          schedule: schedule.map(d => ({
+            dayOfWeek: d.day,
+            isOpen: d.isOpen,
+            openTime: d.openTime,
+            closeTime: d.closeTime,
+          })),
+          exceptions: exceptions.map(e => ({
+            date: e.date,
+            isClosed: e.isClosed,
+            openTime: e.openTime ?? null,
+            closeTime: e.closeTime ?? null,
+            reason: e.reason,
+          })),
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        setSaveError(data?.error ?? "Could not save. Please try again.");
+        return;
+      }
+
+      // Refresh from the server response so ids reconcile and the UI reflects what persisted
+      applyState(data as ApiState);
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2500);
+    } catch {
+      setSaveError("Network error. Please try again.");
+    } finally {
+      setSaving(false);
+    }
   }
 
   function Section({ title, subtitle, children }: { title: string; subtitle?: string; children: React.ReactNode }) {
@@ -94,24 +204,57 @@ export default function AvailabilityPage() {
     );
   }
 
+  if (loading) {
+    return (
+      <div className="max-w-3xl">
+        <h1 className="font-heading font-bold mb-5" style={{ fontSize: "1.5rem", color: "var(--dark)", fontFamily: "var(--font-cormorant)" }}>
+          Availability
+        </h1>
+        <div className="flex items-center gap-3 py-10 justify-center">
+          <div className="w-7 h-7 rounded-full border-2 border-t-transparent animate-spin" style={{ borderColor: "var(--green)", borderTopColor: "transparent" }} />
+          <span className="text-sm font-body" style={{ color: "var(--mid)" }}>Loading availability…</span>
+        </div>
+      </div>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <div className="max-w-3xl">
+        <h1 className="font-heading font-bold mb-5" style={{ fontSize: "1.5rem", color: "var(--dark)", fontFamily: "var(--font-cormorant)" }}>
+          Availability
+        </h1>
+        <div className="p-4 rounded-lg text-sm font-body" style={{ background: "rgba(239,68,68,0.06)", border: "1px solid rgba(239,68,68,0.2)", color: "#dc2626" }}>
+          {loadError}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="max-w-3xl space-y-5">
       <div className="flex items-center justify-between">
         <h1 className="font-heading font-bold" style={{ fontSize: "1.5rem", color: "var(--dark)", fontFamily: "var(--font-cormorant)" }}>
           Availability
         </h1>
-        <button
-          onClick={save}
-          className="px-5 py-2 rounded-lg text-sm font-body font-semibold transition-all flex items-center gap-2"
-          style={{ background: saved ? "rgba(26,74,46,0.10)" : "var(--green)", color: saved ? "var(--green)" : "white" }}
-        >
-          {saved ? (
-            <>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-              Saved
-            </>
-          ) : "Save Changes"}
-        </button>
+        <div className="flex items-center gap-3">
+          {saveError && (
+            <span className="text-xs font-body" style={{ color: "#dc2626" }}>{saveError}</span>
+          )}
+          <button
+            onClick={save}
+            disabled={saving}
+            className="px-5 py-2 rounded-lg text-sm font-body font-semibold transition-all flex items-center gap-2 disabled:opacity-60"
+            style={{ background: saved ? "rgba(26,74,46,0.10)" : "var(--green)", color: saved ? "var(--green)" : "white" }}
+          >
+            {saved ? (
+              <>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                Saved
+              </>
+            ) : saving ? "Saving…" : "Save Changes"}
+          </button>
+        </div>
       </div>
 
       {/* Weekly schedule */}
@@ -250,6 +393,9 @@ export default function AvailabilityPage() {
             Add Exception
           </button>
         </div>
+        <p className="text-xs font-body mt-3" style={{ color: "var(--mid)" }}>
+          Exceptions are saved when you click <span style={{ fontWeight: 600 }}>Save Changes</span> above.
+        </p>
       </Section>
     </div>
   );
