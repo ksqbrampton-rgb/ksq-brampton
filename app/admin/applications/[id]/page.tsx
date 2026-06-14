@@ -52,6 +52,8 @@ export default function ApplicationDetailPage() {
   const [paymentRef, setPaymentRef]   = useState("");
   const [ninNumber, setNinNumber]     = useState("");
   const [noteInput, setNoteInput]     = useState("");
+  const [revertTo, setRevertTo]       = useState<AppStatus | "">("");
+  const [revertReason, setRevertReason] = useState("");
   const [saving, setSaving]           = useState(false);
 
   useEffect(() => {
@@ -69,14 +71,16 @@ export default function ApplicationDetailPage() {
       .finally(() => setLoading(false));
   }, [id]);
 
-  async function patchApp(body: Record<string, unknown>) {
+  async function patchApp(body: Record<string, unknown>): Promise<AppDetail | undefined> {
     setSaving(true);
     const res = await fetch(`/api/admin/data/applications/${id}`, {
       method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
     });
     const data = await res.json();
+    if (!res.ok) { setSaving(false); alert(data.error ?? "That change couldn't be saved."); return undefined; }
     if (data.application) setApp(data.application);
     setSaving(false);
+    return data.application as AppDetail | undefined;
   }
 
   async function updateStatus(newStatus: AppStatus) {
@@ -84,10 +88,19 @@ export default function ApplicationDetailPage() {
     await patchApp({ status: newStatus });
   }
 
+  async function applyRevert() {
+    if (!revertTo || !revertReason.trim()) return;
+    const updated = await patchApp({ status: revertTo, note: revertReason.trim() });
+    if (updated) { setStatus(updated.status); setRevertTo(""); setRevertReason(""); }
+  }
+
   if (loading) return <div className="p-10 text-center text-sm font-body" style={{ color: "var(--mid)" }}>Loading application…</div>;
   if (!app)    return <div className="p-10 text-center text-sm font-body" style={{ color: "var(--mid)" }}>Application not found. <Link href="/admin/applications" style={{ color: "var(--green)" }}>← Back</Link></div>;
 
   const stepIndex = STATUS_STEPS.indexOf(status);
+  const started = app.appointment ? new Date(app.appointment.slotStart).getTime() <= Date.now() : true;
+  const isTerminal = status === "NO_SHOW" || status === "CANCELLED";
+  const revertOptions: AppStatus[] = isTerminal ? STATUS_STEPS : STATUS_STEPS.slice(0, Math.max(stepIndex, 0));
 
   return (
     <div className="max-w-4xl space-y-5">
@@ -124,10 +137,28 @@ export default function ApplicationDetailPage() {
           {status === "APPOINTMENT_SCHEDULED" && <button onClick={() => updateStatus("ARRIVED")} className="px-3 py-1.5 rounded-lg text-xs font-body font-medium" style={{ background: "rgba(16,185,129,0.10)", color: "#059669" }}>✓ Check In</button>}
           {status === "ARRIVED" && <button onClick={() => updateStatus("BIOMETRICS_CAPTURED")} className="px-3 py-1.5 rounded-lg text-xs font-body font-medium" style={{ background: "rgba(26,74,46,0.10)", color: "var(--green)" }}>✓ Biometrics Captured</button>}
           {status === "BIOMETRICS_CAPTURED" && <button onClick={() => updateStatus("NIN_PROCESSING")} className="px-3 py-1.5 rounded-lg text-xs font-body font-medium" style={{ background: "rgba(245,158,11,0.10)", color: "#d97706" }}>→ Send to Processing</button>}
-          {(status === "APPOINTMENT_SCHEDULED" || status === "ARRIVED") && <button onClick={() => updateStatus("NO_SHOW")} className="px-3 py-1.5 rounded-lg text-xs font-body font-medium" style={{ background: "rgba(239,68,68,0.08)", color: "#dc2626" }}>Mark No-Show</button>}
+          {(status === "APPOINTMENT_SCHEDULED" || status === "ARRIVED") && started && <button onClick={() => updateStatus("NO_SHOW")} className="px-3 py-1.5 rounded-lg text-xs font-body font-medium" style={{ background: "rgba(239,68,68,0.08)", color: "#dc2626" }}>Mark No-Show</button>}
           {status === "APPOINTMENT_SCHEDULED" && <button onClick={() => updateStatus("CANCELLED")} className="px-3 py-1.5 rounded-lg text-xs font-body font-medium" style={{ background: "rgba(107,114,128,0.08)", color: "#6b7280" }}>Cancel</button>}
           {saving && <span className="text-xs font-body" style={{ color: "var(--mid)" }}>Saving…</span>}
         </div>
+
+        {revertOptions.length > 0 && (
+          <div className="mt-4 pt-4" style={{ borderTop: "1px dashed rgba(26,74,46,0.12)" }}>
+            <p className="text-xs font-body font-medium uppercase tracking-wide mb-2" style={{ color: "var(--mid)" }}>Correct / revert status</p>
+            <div className="flex flex-col sm:flex-row gap-2">
+              <select value={revertTo} onChange={e => setRevertTo(e.target.value as AppStatus | "")} className="px-3 py-2 rounded-lg text-sm font-body outline-none" style={{ border: "1px solid rgba(26,74,46,0.12)", background: "var(--cream)", color: "var(--dark)" }}>
+                <option value="">Move back to…</option>
+                {revertOptions.map(s => <option key={s} value={s}>{STATUS_LABELS[s]}</option>)}
+              </select>
+              <input type="text" value={revertReason} onChange={e => setRevertReason(e.target.value)} placeholder="Reason (required)"
+                className="flex-1 px-3 py-2 rounded-lg text-sm font-body outline-none" style={{ border: "1px solid rgba(26,74,46,0.12)", background: "var(--cream)", color: "var(--dark)" }} />
+              <button onClick={applyRevert} disabled={!revertTo || !revertReason.trim()}
+                className="px-4 py-2 rounded-lg text-sm font-body font-medium disabled:opacity-40 whitespace-nowrap"
+                style={{ background: "var(--gold)", color: "var(--dark)" }}>Apply Correction</button>
+            </div>
+            <p className="text-xs font-body mt-2" style={{ color: "var(--mid)" }}>Moving an application back records the reason in its notes. The guest is not emailed.</p>
+          </div>
+        )}
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-5">

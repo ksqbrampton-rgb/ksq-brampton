@@ -8,9 +8,12 @@ import { formatSlotTime } from "@/lib/slots";
 
 const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 function formatDate(iso: string) { const d = new Date(iso); return `${MONTHS[d.getMonth()]} ${d.getDate()}`; }
+function hasStarted(iso: string) { return new Date(iso).getTime() <= Date.now(); }
 
 const VIEWS = ["Today", "Upcoming", "Past"] as const;
 type View = typeof VIEWS[number];
+
+type Action = "checkin" | "biometrics" | "noshow" | "reopen";
 
 interface ApptItem {
   id: string;
@@ -45,14 +48,27 @@ export default function AppointmentsPage() {
       .finally(() => setLoading(false));
   }, [view]);
 
-  async function updateStatus(apptId: string, action: "checkin" | "biometrics" | "noshow") {
-    const statusMap: Record<string, AppStatus> = { checkin: "ARRIVED", biometrics: "BIOMETRICS_CAPTURED", noshow: "NO_SHOW" };
-    setStatuses(prev => ({ ...prev, [apptId]: statusMap[action] }));
-    await fetch(`/api/admin/data/appointments/${apptId}`, {
+  async function updateStatus(apptId: string, action: Action) {
+    const statusMap: Record<Action, AppStatus> = {
+      checkin: "ARRIVED",
+      biometrics: "BIOMETRICS_CAPTURED",
+      noshow: "NO_SHOW",
+      reopen: "APPOINTMENT_SCHEDULED",
+    };
+    const prev = statuses[apptId];
+    setStatuses(p => ({ ...p, [apptId]: statusMap[action] }));
+
+    const res = await fetch(`/api/admin/data/appointments/${apptId}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action }),
     });
+
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      setStatuses(p => ({ ...p, [apptId]: prev })); // revert optimistic update
+      alert(data.error ?? "That action couldn't be completed.");
+    }
   }
 
   return (
@@ -82,6 +98,7 @@ export default function AppointmentsPage() {
               <tbody>
                 {items.map((item, i) => {
                   const status = statuses[item.id] ?? item.application.status;
+                  const started = hasStarted(item.slotStart);
                   return (
                     <tr key={item.id} style={{ borderBottom: i < items.length - 1 ? "1px solid rgba(26,74,46,0.05)" : "none" }}>
                       <td className="px-4 py-3 whitespace-nowrap">
@@ -98,7 +115,8 @@ export default function AppointmentsPage() {
                         <div className="flex items-center gap-1.5 flex-wrap">
                           {status === "APPOINTMENT_SCHEDULED" && <button onClick={() => updateStatus(item.id, "checkin")} className="px-2.5 py-1 rounded text-xs font-body font-medium" style={{ background: "rgba(16,185,129,0.10)", color: "#059669" }}>Check In</button>}
                           {status === "ARRIVED" && <button onClick={() => updateStatus(item.id, "biometrics")} className="px-2.5 py-1 rounded text-xs font-body font-medium" style={{ background: "rgba(26,74,46,0.10)", color: "var(--green)" }}>Biometrics ✓</button>}
-                          {(status === "APPOINTMENT_SCHEDULED" || status === "ARRIVED") && <button onClick={() => updateStatus(item.id, "noshow")} className="px-2.5 py-1 rounded text-xs font-body font-medium" style={{ background: "rgba(239,68,68,0.08)", color: "#dc2626" }}>No Show</button>}
+                          {(status === "APPOINTMENT_SCHEDULED" || status === "ARRIVED") && started && <button onClick={() => updateStatus(item.id, "noshow")} className="px-2.5 py-1 rounded text-xs font-body font-medium" style={{ background: "rgba(239,68,68,0.08)", color: "#dc2626" }}>No Show</button>}
+                          {status === "NO_SHOW" && <button onClick={() => updateStatus(item.id, "reopen")} className="px-2.5 py-1 rounded text-xs font-body font-medium" style={{ background: "rgba(201,151,58,0.12)", color: "var(--gold)" }}>Undo No-Show</button>}
                           <Link href={`/admin/applications/${item.application.id}`} className="px-2.5 py-1 rounded text-xs font-body font-medium" style={{ background: "rgba(26,74,46,0.06)", color: "var(--mid)" }}>View</Link>
                         </div>
                       </td>

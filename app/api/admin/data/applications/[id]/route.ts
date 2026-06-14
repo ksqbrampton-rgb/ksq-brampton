@@ -76,8 +76,14 @@ export async function PATCH(
   }
 
   try {
-    const existing = await db.application.findUnique({ where: { id: params.id } });
+    const existing = await db.application.findUnique({
+      where: { id: params.id },
+      include: { appointment: true },
+    });
     if (!existing) return NextResponse.json({ error: "Not found." }, { status: 404 });
+
+    const now = new Date();
+    const existingAppt = existing.appointment as { slotStart: Date } | null;
 
     const updateData: Record<string, unknown> = {};
     if (body.paymentStatus)    updateData.paymentStatus    = body.paymentStatus;
@@ -89,10 +95,77 @@ export async function PATCH(
       updateData.ninIssuedAt = new Date();
     }
 
+    // Detect a backward (reversal) status move so we can require a reason and
+    // unwind the side effects of the state being left.
+    const ORDER: Record<string, number> = {
+      APPOINTMENT_SCHEDULED: 0, ARRIVED: 1, BIOMETRICS_CAPTURED: 2, NIN_PROCESSING: 3, NIN_ISSUED: 4,
+    };
+    let isReversal = false;
+    if (body.status && body.status !== existing.status) {
+      const toActive = body.status in ORDER;
+      if (existing.status in ORDER && toActive && ORDER[body.status] < ORDER[existing.status]) isReversal = true;
+      if ((existing.status === "NO_SHOW" || existing.status === "CANCELLED") && toActive) isReversal = true;
+    }
+
+    if (isReversal && (!body.note || !body.note.trim())) {
+      return NextResponse.json(
+        { error: "A reason is required to move an application back a step." },
+        { status: 422 }
+      );
+    }
+
     if (body.status) {
       updateData.status = body.status;
       if (body.status === "ARRIVED")             updateData.biometricsDoneAt = null;
       if (body.status === "BIOMETRICS_CAPTURED") updateData.biometricsDoneAt = new Date();
+    }
+
+    if (isReversal) {
+      if (existing.status === "NO_SHOW") {
+        // Clamp at zero — never push the no-show count negative.
+        await db.guest.updateMany({
+          where: { id: existing.guestId, noShowCount: { gt: 0 } },
+          data: { noShowCount: { decrement: 1 } },
+        });
+      }
+      if (existing.status === "NIN_ISSUED") {
+        updateData.ninNumber = null;    // clear so re-issuance starts clean and re-emails
+        updateData.ninIssuedAt = null;
+      }
+      if ((ORDER[body.status as string] ?? 0) < ORDER.BIOMETRICS_CAPTURED) {
+        updateData.biometricsDoneAt = null;
+      }
+      const stamp = new Date().toLocaleDateString("en-CA", { timeZone: "America/Toronto" });
+      const line = `[${stamp}] Reverted ${existing.status} → ${body.status}: ${body.note!.trim()}`;
+      updateData.notes = existing.notes ? `${existing.notes}\n${line}` : line;
+    }
+
+    // Forward no-show from the detail-page status control. Mirror the queue path:
+    // guard on slot start, increment the count, and sync the appointment so both
+    // entry points behave identically.
+    if (body.status === "NO_SHOW" && existing.status !== "NO_SHOW") {
+      if (existingAppt && existingAppt.slotStart > now) {
+        return NextResponse.json(
+          { error: "This appointment hasn't started yet — it can't be marked as a no-show." },
+          { status: 422 }
+        );
+      }
+      await db.guest.update({
+        where: { id: existing.guestId },
+        data: { noShowCount: { increment: 1 } },
+      });
+      await db.appointment.update({
+        where: { applicationId: params.id },
+        data: { status: "NO_SHOW" as never, noShowMarkedAt: now },
+      }).catch(() => {});
+    }
+
+    // Forward cancel: keep the appointment in sync.
+    if (body.status === "CANCELLED" && existing.status !== "CANCELLED") {
+      await db.appointment.update({
+        where: { applicationId: params.id },
+        data: { status: "CANCELLED" as never },
+      }).catch(() => {});
     }
 
     const updated = await db.application.update({
@@ -100,6 +173,21 @@ export async function PATCH(
       data: updateData,
       include: { guest: true, appointment: true },
     });
+
+    // Keep the appointment in sync when the application is reverted.
+    if (isReversal) {
+      const apptStatusFor: Record<string, string> = {
+        APPOINTMENT_SCHEDULED: "SCHEDULED", ARRIVED: "ARRIVED",
+        BIOMETRICS_CAPTURED: "COMPLETED", NIN_PROCESSING: "COMPLETED", NIN_ISSUED: "COMPLETED",
+      };
+      const newApptStatus = apptStatusFor[body.status as string];
+      if (newApptStatus) {
+        await db.appointment.update({
+          where: { applicationId: params.id },
+          data: { status: newApptStatus as never, ...(existing.status === "NO_SHOW" ? { noShowMarkedAt: null } : {}) },
+        }).catch(() => {});
+      }
+    }
 
     // Record status change in history
     if (body.status && body.changedById) {
