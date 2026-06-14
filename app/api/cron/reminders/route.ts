@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { sendReminder48h, sendReminder2h } from "@/lib/email";
 import { formatSlotTime } from "@/lib/slots";
+import { decryptNullable } from "@/lib/encryption";
 
 const MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
 function formatDateDisplay(date: Date): string {
@@ -36,7 +37,7 @@ export async function GET(request: Request) {
   let sent2h  = 0;
 
   try {
-    // ── 48h reminders ──────────────────────────────────────
+    // ── 48h reminders ──
     const upcoming48h = await db.appointment.findMany({
       where: {
         slotStart: { gte: window48hStart, lte: window48hEnd },
@@ -52,7 +53,7 @@ export async function GET(request: Request) {
       const { guest } = appt.application;
       try {
         await sendReminder48h({
-          to: guest.email,
+          to: decryptNullable(guest.email) ?? guest.email, // decrypt before sending
           guestName: `${guest.firstName} ${guest.lastName}`,
           applicationRef: appt.application.applicationRef,
           appointmentDate: formatDateDisplay(appt.slotStart),
@@ -68,7 +69,7 @@ export async function GET(request: Request) {
       }
     }
 
-    // ── 2h reminders ───────────────────────────────────────
+    // ── 2h reminders ──
     const upcoming2h = await db.appointment.findMany({
       where: {
         slotStart: { gte: window2hStart, lte: window2hEnd },
@@ -84,7 +85,7 @@ export async function GET(request: Request) {
       const { guest } = appt.application;
       try {
         await sendReminder2h({
-          to: guest.email,
+          to: decryptNullable(guest.email) ?? guest.email, // decrypt before sending
           guestName: `${guest.firstName} ${guest.lastName}`,
           applicationRef: appt.application.applicationRef,
           appointmentDate: formatDateDisplay(appt.slotStart),

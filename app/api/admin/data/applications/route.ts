@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { requireAdminSession } from "@/lib/adminAuth";
+import { withDecryptedGuest, withDecryptedNin } from "@/lib/encryption";
 
 export async function GET(request: Request) {
   const check = await requireAdminSession();
@@ -23,15 +24,20 @@ export async function GET(request: Request) {
     take: 100,
   });
 
-  // Apply search filter in memory (simpler than complex Prisma where for encrypted fields)
+  // Decrypt guest fields + NIN before returning. Search then runs on plaintext,
+  // so partial matching on name/email is preserved.
+  const decrypted = applications.map((app) =>
+    withDecryptedNin({ ...app, guest: withDecryptedGuest(app.guest) })
+  );
+
   const filtered = search
-    ? applications.filter((app: { guest: { firstName: string; lastName: string; email: string }; applicationRef: string }) =>
+    ? decrypted.filter((app) =>
         app.guest.firstName.toLowerCase().includes(search) ||
         app.guest.lastName.toLowerCase().includes(search) ||
         app.guest.email.toLowerCase().includes(search) ||
         app.applicationRef.toLowerCase().includes(search)
       )
-    : applications;
+    : decrypted;
 
   return NextResponse.json({ applications: filtered });
 }

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { requireAdminSession } from "@/lib/adminAuth";
+import { withDecryptedGuest, withDecryptedNin } from "@/lib/encryption";
 
 export async function GET() {
   const check = await requireAdminSession();
@@ -61,9 +62,14 @@ export async function GET() {
     }),
   ]);
 
+  const decryptedQueue = todayQueue.map((a) => ({
+    ...a,
+    application: withDecryptedNin({ ...a.application, guest: withDecryptedGuest(a.application.guest) }),
+  }));
+
   return NextResponse.json({
     stats: { todayAppointments, thisMonthApplications, ninIssued, pendingPayments },
-    todayQueue,
+    todayQueue: decryptedQueue,
     recentActivity,
   });
 }

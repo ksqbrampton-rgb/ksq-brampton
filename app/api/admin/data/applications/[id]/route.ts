@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { requireAdminSession } from "@/lib/adminAuth";
+import { encrypt, withDecryptedGuest, withDecryptedNin } from "@/lib/encryption";
 
 export async function GET(
   _request: Request,
@@ -30,7 +31,8 @@ export async function GET(
     return NextResponse.json({ error: "Application not found." }, { status: 404 });
   }
 
-  return NextResponse.json({ application });
+  const out = withDecryptedNin({ ...application, guest: withDecryptedGuest(application.guest) });
+  return NextResponse.json({ application: out });
 }
 
 export async function PATCH(
@@ -67,7 +69,7 @@ export async function PATCH(
     if (body.paymentReference) updateData.paymentReference = body.paymentReference;
     if (body.notes !== undefined) updateData.notes = body.notes;
     if (body.ninNumber) {
-      updateData.ninNumber  = body.ninNumber;
+      updateData.ninNumber  = encrypt(body.ninNumber.trim()); // store encrypted
       updateData.ninIssuedAt = new Date();
     }
 
@@ -96,7 +98,8 @@ export async function PATCH(
       }).catch(() => {}); // Non-critical — don't fail the request
     }
 
-    return NextResponse.json({ application: updated });
+    const out = withDecryptedNin({ ...updated, guest: withDecryptedGuest(updated.guest) });
+    return NextResponse.json({ application: out });
   } catch (err) {
     console.error("[admin/applications/patch]", err);
     return NextResponse.json({ error: "Update failed." }, { status: 500 });

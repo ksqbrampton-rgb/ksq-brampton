@@ -5,6 +5,7 @@ import { generateBookingRef, validateBookingForm, type BookingPayload } from "@/
 import { formatSlotTime, validateBookableSlot } from "@/lib/slots";
 import { sendBookingConfirmed } from "@/lib/email";
 import { bookingLimiter, checkRateLimit, getClientIp } from "@/lib/ratelimit";
+import { encrypt, encryptNullable, emailHash } from "@/lib/encryption";
 
 const MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
 function formatDateDisplay(date: Date): string {
@@ -93,11 +94,19 @@ export async function POST(request: Request) {
         });
         if (dayCount >= slot.maxPerDay) throw new BookingError("DAY_FULL");
 
-        // 3. Upsert the guest by email (create first time, refresh name/phone on return)
+        // 3. Upsert the guest by email blind index (create first time, refresh
+        //    name/phone on return). email/phone are stored encrypted.
+        const normEmail = body.email!.trim().toLowerCase();
         const guest = await tx.guest.upsert({
-          where: { email: body.email! },
-          update: { firstName: body.firstName!, lastName: body.lastName!, phone: body.phone || null },
-          create: { email: body.email!, firstName: body.firstName!, lastName: body.lastName!, phone: body.phone || null },
+          where: { emailHash: emailHash(normEmail) },
+          update: { firstName: body.firstName!, lastName: body.lastName!, phone: encryptNullable(body.phone) },
+          create: {
+            email: encrypt(normEmail),
+            emailHash: emailHash(normEmail),
+            firstName: body.firstName!,
+            lastName: body.lastName!,
+            phone: encryptNullable(body.phone),
+          },
         });
 
         // 4. Block if this guest already has an active application
