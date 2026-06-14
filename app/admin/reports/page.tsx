@@ -13,7 +13,7 @@ interface ReportData {
   weeklyData:       { week: string; bookings: number }[];
   showData:         { name: string; value: number; color: string }[];
   revenue:          { thisMonth: number; thisYear: number; pending: number };
-  officerStats:     { name: string; processed: number; avgDays: number; noShowRate: string }[];
+  officerStats:     { name: string; processed: number; avgDays: number | null; noShowRate: string }[];
   statusBreakdown:  { status: string; count: number }[];
   totalApplications: number;
 }
@@ -71,7 +71,7 @@ export default function ReportsPage() {
       [
         { header: "Officer",      accessor: o => o.name },
         { header: "Processed",    accessor: o => o.processed },
-        { header: "Avg Days",     accessor: o => o.avgDays },
+        { header: "Avg Days",     accessor: o => o.avgDays == null ? "—" : o.avgDays },
         { header: "No-Show Rate", accessor: o => o.noShowRate },
       ],
       `ksq-officer-performance-${new Date().toISOString().slice(0, 10)}.csv`
@@ -169,7 +169,7 @@ export default function ReportsPage() {
                       <tr key={o.name} style={{ borderBottom: i < (data?.officerStats.length ?? 0) - 1 ? "1px solid rgba(26,74,46,0.05)" : "none" }}>
                         <td className="py-3 text-sm font-body font-medium" style={{ color: "var(--dark)" }}>{o.name}</td>
                         <td className="py-3 text-sm font-body" style={{ color: "var(--mid)" }}>{o.processed}</td>
-                        <td className="py-3 text-sm font-body" style={{ color: "var(--mid)" }}>{o.avgDays} days</td>
+                        <td className="py-3 text-sm font-body" style={{ color: "var(--mid)" }}>{o.avgDays == null ? "—" : `${o.avgDays} days`}</td>
                         <td className="py-3">
                           <span className="text-xs font-body font-medium px-2 py-0.5 rounded-full"
                             style={{ background: parseFloat(o.noShowRate) > 5 ? "rgba(239,68,68,0.08)" : "rgba(26,74,46,0.08)", color: parseFloat(o.noShowRate) > 5 ? "#dc2626" : "var(--green)" }}>

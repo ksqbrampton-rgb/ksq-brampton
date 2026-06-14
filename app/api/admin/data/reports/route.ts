@@ -22,7 +22,7 @@ export async function GET(request: Request) {
   // 1. Applications by status (enrollment funnel)
   const allApps = await db.application.findMany({
     where: { createdAt: { gte: since } },
-    select: { status: true, paymentStatus: true, createdAt: true, officerId: true },
+    select: { status: true, paymentStatus: true, createdAt: true, officerId: true, ninIssuedAt: true },
   });
 
   const statusCounts: Record<string, number> = {};
@@ -96,6 +96,19 @@ export async function GET(request: Request) {
     select: { id: true, firstName: true, lastName: true },
   });
 
+  // Avg days to complete (booking createdAt -> ninIssuedAt) per officer, over
+  // issued applications booked within the selected range. Computed in-memory
+  // from allApps so no extra queries are needed.
+  const DAY_MS = 1000 * 60 * 60 * 24;
+  const durationsByOfficer: Record<string, number[]> = {};
+  allApps.forEach((a: { officerId: string | null; ninIssuedAt: Date | null; createdAt: Date }) => {
+    if (a.officerId && a.ninIssuedAt) {
+      const days = (new Date(a.ninIssuedAt).getTime() - new Date(a.createdAt).getTime()) / DAY_MS;
+      if (!durationsByOfficer[a.officerId]) durationsByOfficer[a.officerId] = [];
+      durationsByOfficer[a.officerId].push(days);
+    }
+  });
+
   const officerStats = await Promise.all(
     officers.map(async (o: { id: string; firstName: string; lastName: string }) => {
       const processed = await db.application.count({
@@ -104,11 +117,15 @@ export async function GET(request: Request) {
       const noShows = await db.application.count({
         where: { officerId: o.id, status: "NO_SHOW", createdAt: { gte: since } },
       });
+      const durations = durationsByOfficer[o.id] ?? [];
+      const avgDays = durations.length
+        ? Math.round((durations.reduce((sum, d) => sum + d, 0) / durations.length) * 10) / 10
+        : null; // no issued NINs yet -> rendered as "—"
       return {
         name: `${o.firstName} ${o.lastName}`,
         processed,
         noShowRate: processed > 0 ? `${Math.round((noShows / processed) * 100)}%` : "0%",
-        avgDays: 2.1, // TODO: calculate from status history timestamps
+        avgDays,
       };
     })
   );
