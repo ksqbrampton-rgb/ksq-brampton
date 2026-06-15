@@ -67,6 +67,7 @@ export async function PATCH(
     notes?: string;
     changedById?: string;
     note?: string;
+    officerId?: string | null;
   };
 
   try {
@@ -90,6 +91,7 @@ export async function PATCH(
     if (body.paymentMethod)    updateData.paymentMethod    = body.paymentMethod;
     if (body.paymentReference) updateData.paymentReference = body.paymentReference;
     if (body.notes !== undefined) updateData.notes = body.notes;
+    if (body.officerId !== undefined) updateData.officerId = body.officerId || null;
     if (body.ninNumber) {
       updateData.ninNumber  = encrypt(body.ninNumber.trim()); // store encrypted
       updateData.ninIssuedAt = new Date();

@@ -27,11 +27,31 @@ interface ApptItem {
   };
 }
 
+interface StaffOption { id: string; name: string; role: string; }
+
+const EMPTY_FORM = { date: "", slotStart: "", firstName: "", lastName: "", email: "", phone: "", notes: "", officerId: "", sendEmail: true };
+
 export default function AppointmentsPage() {
   const [view, setView]     = useState<View>("Today");
   const [items, setItems]   = useState<ApptItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [statuses, setStatuses] = useState<Record<string, AppStatus>>({});
+
+  // Manual booking
+  const [showNew, setShowNew]       = useState(false);
+  const [staff, setStaff]           = useState<StaffOption[]>([]);
+  const [form, setForm]             = useState({ ...EMPTY_FORM });
+  const [slots, setSlots]           = useState<string[]>([]);
+  const [slotsLoading, setSlotsLoading] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [formMsg, setFormMsg]       = useState<string | null>(null);
+
+  useEffect(() => {
+    fetch("/api/admin/data/staff")
+      .then(r => r.json())
+      .then(d => setStaff(d.staff ?? []))
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     setLoading(true);
@@ -71,9 +91,106 @@ export default function AppointmentsPage() {
     }
   }
 
+  function refreshList() {
+    fetch(`/api/admin/data/appointments?view=${view}`)
+      .then(r => r.json())
+      .then(data => {
+        const appts: ApptItem[] = data.appointments ?? [];
+        setItems(appts);
+        const map: Record<string, AppStatus> = {};
+        appts.forEach(a => { map[a.id] = a.application.status; });
+        setStatuses(map);
+      })
+      .catch(() => {});
+  }
+
+  async function loadSlots(date: string) {
+    if (!date) { setSlots([]); return; }
+    setSlotsLoading(true);
+    setForm(f => ({ ...f, slotStart: "" }));
+    try {
+      const r = await fetch(`/api/slots?date=${date}`);
+      const d = await r.json();
+      setSlots(d.slots ?? []);
+    } catch {
+      setSlots([]);
+    } finally {
+      setSlotsLoading(false);
+    }
+  }
+
+  function openNew() {
+    const today = new Date().toLocaleDateString("en-CA", { timeZone: "America/Toronto" }); // YYYY-MM-DD
+    setForm({ ...EMPTY_FORM, date: today });
+    setSlots([]);
+    setFormMsg(null);
+    setShowNew(true);
+    loadSlots(today);
+  }
+
+  async function postBooking(force: boolean): Promise<{ ok: boolean; duplicate?: boolean; error?: string }> {
+    const res = await fetch("/api/admin/data/appointments", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        firstName: form.firstName.trim(),
+        lastName: form.lastName.trim(),
+        email: form.email.trim(),
+        phone: form.phone.trim() || undefined,
+        notes: form.notes.trim() || undefined,
+        slotStart: form.slotStart,
+        officerId: form.officerId || null,
+        sendEmail: form.sendEmail,
+        force,
+      }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (res.ok) return { ok: true };
+    if (res.status === 409 && data.code === "DUPLICATE") return { ok: false, duplicate: true };
+    if (data.errors) return { ok: false, error: "Please check the guest details." };
+    return { ok: false, error: data.error ?? "Couldn't create the booking." };
+  }
+
+  async function submitBooking() {
+    setFormMsg(null);
+    if (!form.firstName.trim() || !form.lastName.trim() || !form.email.trim()) {
+      setFormMsg("First name, last name, and email are required.");
+      return;
+    }
+    if (!form.slotStart) {
+      setFormMsg("Please choose a time slot.");
+      return;
+    }
+    setSubmitting(true);
+    try {
+      let result = await postBooking(false);
+      if (result.duplicate) {
+        if (confirm("This guest already has an active application. Book anyway?")) {
+          result = await postBooking(true);
+        } else {
+          setFormMsg("Cancelled — this guest already has an active application.");
+          return;
+        }
+      }
+      if (result.ok) {
+        setShowNew(false);
+        refreshList();
+      } else if (result.error) {
+        setFormMsg(result.error);
+      }
+    } catch {
+      setFormMsg("Couldn't create the booking. Please try again.");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
   return (
     <div className="max-w-5xl space-y-5">
-      <h1 className="font-heading font-bold" style={{ fontSize: "1.5rem", color: "var(--dark)", fontFamily: "var(--font-cormorant)" }}>Appointments</h1>
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <h1 className="font-heading font-bold" style={{ fontSize: "1.5rem", color: "var(--dark)", fontFamily: "var(--font-cormorant)" }}>Appointments</h1>
+        <button onClick={openNew} className="px-4 py-2 rounded-lg text-sm font-body font-medium" style={{ background: "var(--gold)", color: "var(--dark)" }}>+ New Booking</button>
+      </div>
       <div className="flex gap-1 p-1 rounded-lg w-fit" style={{ background: "white", border: "1px solid rgba(26,74,46,0.10)" }}>
         {VIEWS.map(v => (
           <button key={v} onClick={() => setView(v)} className="px-4 py-1.5 rounded-md text-sm font-body font-medium transition-all"
@@ -128,6 +245,100 @@ export default function AppointmentsPage() {
           </div>
         )}
       </div>
+
+      {showNew && (
+        <div className="fixed inset-0 z-50 flex items-start justify-center p-4 overflow-y-auto" style={{ background: "rgba(15,35,24,0.45)" }}>
+          <div className="w-full max-w-lg rounded-xl my-8" style={{ background: "white", boxShadow: "0 10px 40px rgba(15,35,24,0.25)" }}>
+            <div className="flex items-center justify-between px-6 py-4" style={{ borderBottom: "1px solid rgba(26,74,46,0.08)" }}>
+              <h2 className="font-heading font-semibold" style={{ fontSize: "1.15rem", color: "var(--dark)", fontFamily: "var(--font-cormorant)" }}>New Booking</h2>
+              <button onClick={() => setShowNew(false)} className="text-base font-body" style={{ color: "var(--mid)" }} aria-label="Close">✕</button>
+            </div>
+
+            <div className="px-6 py-5 space-y-4">
+              <div>
+                <label className="block text-xs font-body font-medium uppercase tracking-wide mb-1" style={{ color: "var(--mid)" }}>Date</label>
+                <input type="date" value={form.date} onChange={e => { const v = e.target.value; setForm(f => ({ ...f, date: v })); loadSlots(v); }}
+                  className="w-full px-3 py-2 rounded-lg text-sm font-body outline-none" style={{ border: "1px solid rgba(26,74,46,0.12)", background: "var(--cream)", color: "var(--dark)" }} />
+              </div>
+
+              <div>
+                <label className="block text-xs font-body font-medium uppercase tracking-wide mb-1" style={{ color: "var(--mid)" }}>Time Slot</label>
+                {slotsLoading ? (
+                  <p className="text-sm font-body py-2" style={{ color: "var(--mid)" }}>Loading slots…</p>
+                ) : slots.length === 0 ? (
+                  <p className="text-sm font-body py-2" style={{ color: "var(--mid)" }}>No available slots for this date.</p>
+                ) : (
+                  <div className="flex flex-wrap gap-2">
+                    {slots.map(s => {
+                      const sel = form.slotStart === s;
+                      return (
+                        <button key={s} onClick={() => setForm(f => ({ ...f, slotStart: s }))}
+                          className="px-3 py-1.5 rounded-lg text-xs font-body font-medium"
+                          style={{ background: sel ? "var(--green)" : "var(--cream)", color: sel ? "white" : "var(--dark)", border: sel ? "none" : "1px solid rgba(26,74,46,0.12)" }}>
+                          {formatSlotTime(s)}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-body font-medium uppercase tracking-wide mb-1" style={{ color: "var(--mid)" }}>First Name</label>
+                  <input value={form.firstName} onChange={e => setForm(f => ({ ...f, firstName: e.target.value }))}
+                    className="w-full px-3 py-2 rounded-lg text-sm font-body outline-none" style={{ border: "1px solid rgba(26,74,46,0.12)", background: "var(--cream)", color: "var(--dark)" }} />
+                </div>
+                <div>
+                  <label className="block text-xs font-body font-medium uppercase tracking-wide mb-1" style={{ color: "var(--mid)" }}>Last Name</label>
+                  <input value={form.lastName} onChange={e => setForm(f => ({ ...f, lastName: e.target.value }))}
+                    className="w-full px-3 py-2 rounded-lg text-sm font-body outline-none" style={{ border: "1px solid rgba(26,74,46,0.12)", background: "var(--cream)", color: "var(--dark)" }} />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-body font-medium uppercase tracking-wide mb-1" style={{ color: "var(--mid)" }}>Email</label>
+                <input type="email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
+                  className="w-full px-3 py-2 rounded-lg text-sm font-body outline-none" style={{ border: "1px solid rgba(26,74,46,0.12)", background: "var(--cream)", color: "var(--dark)" }} />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-body font-medium uppercase tracking-wide mb-1" style={{ color: "var(--mid)" }}>Phone <span className="normal-case" style={{ opacity: 0.6 }}>(optional)</span></label>
+                  <input value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))}
+                    className="w-full px-3 py-2 rounded-lg text-sm font-body outline-none" style={{ border: "1px solid rgba(26,74,46,0.12)", background: "var(--cream)", color: "var(--dark)" }} />
+                </div>
+                <div>
+                  <label className="block text-xs font-body font-medium uppercase tracking-wide mb-1" style={{ color: "var(--mid)" }}>Officer <span className="normal-case" style={{ opacity: 0.6 }}>(optional)</span></label>
+                  <select value={form.officerId} onChange={e => setForm(f => ({ ...f, officerId: e.target.value }))}
+                    className="w-full px-3 py-2 rounded-lg text-sm font-body outline-none" style={{ border: "1px solid rgba(26,74,46,0.12)", background: "var(--cream)", color: "var(--dark)" }}>
+                    <option value="">— Unassigned —</option>
+                    {staff.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-body font-medium uppercase tracking-wide mb-1" style={{ color: "var(--mid)" }}>Notes <span className="normal-case" style={{ opacity: 0.6 }}>(optional)</span></label>
+                <input value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))}
+                  className="w-full px-3 py-2 rounded-lg text-sm font-body outline-none" style={{ border: "1px solid rgba(26,74,46,0.12)", background: "var(--cream)", color: "var(--dark)" }} />
+              </div>
+
+              <label className="flex items-center gap-2 text-sm font-body" style={{ color: "var(--dark)" }}>
+                <input type="checkbox" checked={form.sendEmail} onChange={e => setForm(f => ({ ...f, sendEmail: e.target.checked }))} />
+                Send confirmation email to the guest
+              </label>
+
+              {formMsg && <p className="text-sm font-body" style={{ color: "#dc2626" }}>{formMsg}</p>}
+            </div>
+
+            <div className="flex justify-end gap-2 px-6 py-4" style={{ borderTop: "1px solid rgba(26,74,46,0.08)" }}>
+              <button onClick={() => setShowNew(false)} disabled={submitting} className="px-4 py-2 rounded-lg text-sm font-body font-medium" style={{ background: "var(--cream)", color: "var(--mid)" }}>Cancel</button>
+              <button onClick={submitBooking} disabled={submitting} className="px-4 py-2 rounded-lg text-sm font-body font-medium disabled:opacity-50" style={{ background: "var(--green)", color: "white" }}>{submitting ? "Booking…" : "Create Booking"}</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

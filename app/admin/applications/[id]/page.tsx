@@ -19,11 +19,13 @@ const STATUS_STEPS: AppStatus[] = ["APPOINTMENT_SCHEDULED","ARRIVED","BIOMETRICS
 
 interface AppDetail {
   id: string; applicationRef: string; status: AppStatus; paymentStatus: PaymentStatus;
-  paymentMethod?: string|null; paymentReference?: string|null; notes?: string|null;
+  paymentMethod?: string|null; paymentReference?: string|null; notes?: string|null; officerId?: string|null;
   guest: { id: string; firstName: string; lastName: string; email: string; phone?: string|null; noShowCount: number };
   appointment?: { id: string; slotStart: string; arrivedAt?: string|null } | null;
   documents?: { id: string; fileName: string; type: string; status: string; mimeType: string; fileSize: number }[];
 }
+
+interface StaffOption { id: string; name: string; role: string; }
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -54,6 +56,8 @@ export default function ApplicationDetailPage() {
   const [noteInput, setNoteInput]     = useState("");
   const [revertTo, setRevertTo]       = useState<AppStatus | "">("");
   const [revertReason, setRevertReason] = useState("");
+  const [officerId, setOfficerId]     = useState("");
+  const [staffList, setStaffList]     = useState<StaffOption[]>([]);
   const [saving, setSaving]           = useState(false);
 
   useEffect(() => {
@@ -66,10 +70,23 @@ export default function ApplicationDetailPage() {
         setPaymentStatus(a.paymentStatus);
         setPaymentMethod(a.paymentMethod ?? "CASH");
         setPaymentRef(a.paymentReference ?? "");
+        setOfficerId(a.officerId ?? "");
       })
       .catch(() => {})
       .finally(() => setLoading(false));
   }, [id]);
+
+  useEffect(() => {
+    fetch("/api/admin/data/staff")
+      .then(r => r.json())
+      .then(d => setStaffList(d.staff ?? []))
+      .catch(() => {});
+  }, []);
+
+  async function assignOfficer(value: string) {
+    setOfficerId(value);
+    await patchApp({ officerId: value || null });
+  }
 
   async function patchApp(body: Record<string, unknown>): Promise<AppDetail | undefined> {
     setSaving(true);
@@ -177,6 +194,14 @@ export default function ApplicationDetailPage() {
               <Row label="Arrived At" value={app.appointment.arrivedAt ? formatSlotTime(app.appointment.arrivedAt) : "—"} />
             </>
           ) : <p className="text-sm font-body" style={{ color: "var(--mid)" }}>No appointment scheduled.</p>}
+          <div className="mt-3 pt-3" style={{ borderTop: "1px solid rgba(26,74,46,0.07)" }}>
+            <label className="block text-xs font-body font-medium uppercase tracking-wide mb-1" style={{ color: "var(--mid)" }}>Assigned Officer</label>
+            <select value={officerId} onChange={e => assignOfficer(e.target.value)} className="w-full px-3 py-2 rounded-lg text-sm font-body outline-none" style={{ border: "1px solid rgba(26,74,46,0.12)", background: "var(--cream)", color: "var(--dark)" }}>
+              <option value="">— Unassigned —</option>
+              {staffList.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+            </select>
+            <p className="text-xs font-body mt-1.5" style={{ color: "var(--mid)" }}>Attributes this application to the officer in reporting.</p>
+          </div>
         </Section>
 
         {/* Payment */}
