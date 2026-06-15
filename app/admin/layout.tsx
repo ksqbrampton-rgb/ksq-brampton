@@ -27,22 +27,28 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const pathname = usePathname();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
-  // Redirect to login if not authenticated (client-side guard)
+  // Public auth routes are reachable while logged out (login, register,
+  // forgot-password, and the invite/reset set-password link).
+  const isPublicRoute =
+    pathname === "/admin/login" ||
+    pathname === "/admin/register" ||
+    pathname.startsWith("/admin/forgot-password") ||
+    pathname.startsWith("/admin/reset-password");
+
+  // Redirect to login if not authenticated (client-side guard) — but never on a
+  // public auth route, or an invited/reset visitor would be bounced to login.
   useEffect(() => {
-    if (status === "unauthenticated") {
+    if (status === "unauthenticated" && !isPublicRoute) {
       router.replace("/admin/login");
     }
-  }, [status, router]);
+  }, [status, router, isPublicRoute]);
 
   // Close sidebar on route change (mobile)
   useEffect(() => {
     setSidebarOpen(false);
   }, [pathname]);
 
-  if (pathname === "/admin/login") return <>{children}</>;
-  if (pathname === "/admin/register") return <>{children}</>;
-  if (pathname.startsWith("/admin/forgot-password")) return <>{children}</>;
-  if (pathname.startsWith("/admin/reset-password")) return <>{children}</>;
+  if (isPublicRoute) return <>{children}</>;
 
   if (status === "loading") {
     return (
