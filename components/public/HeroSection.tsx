@@ -94,7 +94,7 @@ export default function HeroSection() {
             style={{ borderTop: "1px solid rgba(255,255,255,0.12)" }}
           >
             {[
-              { value: "~10 min", label: "Biometric capture time" },
+              { value: "~30 min", label: "Biometric capture time" },
               { value: "1 Location", label: "Brampton, Ontario" },
               { value: "NIMC ✓", label: "Authorised enrollment" },
             ].map((stat) => (

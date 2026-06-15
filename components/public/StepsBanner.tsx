@@ -12,7 +12,7 @@ const STEPS = [
     ),
     title: "Download & Fill Form",
     description:
-      "Download the NIMC pre-enrollment form, complete it accurately, and ensure the 2D barcode is generated before your appointment.",
+      "Download the pre-enrollment form, complete it accurately, and print it to bring to your appointment.",
   },
   {
     number: "02",
@@ -37,7 +37,7 @@ const STEPS = [
     ),
     title: "Attend & Get Your NIN",
     description:
-      "Come in with your documents. Biometric capture takes about 10 minutes. Your NIN is processed and issued by NIMC.",
+      "Come in with your documents. Biometric capture takes about 30 minutes. Your NIN is processed and issued by NIMC.",
   },
 ];
 

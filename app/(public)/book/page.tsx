@@ -73,7 +73,7 @@ export default function BookPage() {
       <div className="px-4 py-12">
         <BookingWidget />
         <p className="text-center text-xs font-body mt-6" style={{ color: "var(--mid)" }}>
-          Appointments are 30 minutes · Walk-ins are not accepted
+          Appointments are 30 minutes · Booking online gives you priority over walk-ins
         </p>
       </div>
     </div>

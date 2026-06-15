@@ -1,16 +1,9 @@
 const DOWNLOADS = [
   {
     title: "Enrollment Form",
-    description: "NIMC pre-enrollment form. Complete this before your appointment — the 2D barcode must be visible when printed.",
+    description: "Complete this pre-enrollment form before your appointment and bring the printed copy with you. Digital copies are not accepted.",
     type: "PDF",
-    href: "/downloads/nimc-enrollment-form.pdf",
-    external: false,
-  },
-  {
-    title: "Diaspora Enrollment Fact Sheet",
-    description: "Overview of the NIN diaspora enrollment process, requirements, and what to expect at your appointment.",
-    type: "PDF",
-    href: "/downloads/diaspora-enrollment-factsheet.pdf",
+    href: "/downloads/KSQ_enrolment_form_v2A.pdf",
     external: false,
   },
   {
@@ -78,7 +71,7 @@ export default function DownloadsSection() {
         </div>
 
         {/* 4-card grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 reveal">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 reveal max-w-5xl mx-auto">
           {DOWNLOADS.map((item) => (
             <a
               key={item.title}

@@ -22,8 +22,8 @@ interface Props {
 
 const DOCUMENTS_CHECKLIST = [
   "Valid or expired Nigerian passport",
-  "Evidence of payment (receipt)",
-  "Completed pre-enrollment form with 2D barcode (printed)",
+  "Bank Verification Number (BVN)",
+  "Completed pre-enrollment form (printed)",
   "Parent's passport (if enrolling a minor)",
 ];
 

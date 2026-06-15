@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { SITE } from "@/lib/constants";
 
 export const metadata: Metadata = {
   title: "How to Enroll for Your NIN",
@@ -13,45 +12,32 @@ const STEPS = [
     number: 1,
     title: "Gather Your Required Documents",
     description:
-      "Before anything else, ensure you have your valid (or expired) Nigerian passport and any applicable secondary ID. Check the full documents list below.",
+      "Before anything else, ensure you have your valid (or expired) Nigerian passport, your Bank Verification Number (BVN), and any applicable secondary ID. Check the full documents list below.",
     details: [
       "Valid or expired Nigerian international passport",
-      "Secondary ID if passport is expired (national ID, driver's licence)",
-      "Evidence of payment (receipt)",
-      "Completed pre-enrollment form with 2D barcode (see Step 2)",
-      "Parent's passport if enrolling a minor",
+      "Secondary, current government-issued ID if your passport is expired (e.g., driver's licence)",
+      "Bank Verification Number (BVN)",
+      "Completed pre-enrollment form, printed (see Step 2)",
+      "Parent's passport and NIN if enrolling a minor under 16",
     ],
   },
   {
     number: 2,
-    title: "Complete the NIMC Pre-Enrollment Form",
+    title: "Complete the Pre-Enrollment Form",
     description:
-      "Download the NIMC pre-enrollment form and fill it in accurately. The form generates a 2D barcode on completion — this barcode must be visible on your printed copy.",
+      "Download the pre-enrollment form and fill it in accurately, then print it and bring the printed copy to your appointment.",
     details: [
       "Download the form from the Downloads section",
       "Fill in all fields accurately — errors may delay your NIN",
-      "Print the completed form — the 2D barcode is required",
+      "Print the completed form and bring it with you",
       "Digital or phone copies of the form are not accepted at the appointment",
-      "Need help? Form assistance is available at the center for a nominal fee",
     ],
   },
   {
     number: 3,
-    title: "Make Your Payment",
-    description:
-      "Pay the applicable NIMC diaspora enrollment fee before your appointment. Keep your payment receipt — it is a required document.",
-    details: [
-      `New enrollment: $${SITE.fees.newEnrollment} CAD`,
-      `BVN + NIN completion: $${SITE.fees.bvnCompletion} CAD`,
-      "Payment receipt is a required document — do not discard it",
-      "Cash and e-transfer are accepted",
-    ],
-  },
-  {
-    number: 4,
     title: "Book Your Appointment Online",
     description:
-      "Use our in-app booking system to choose your preferred date and time. No account is required — just your name, email, and phone number.",
+      "Use our in-app booking system to choose your preferred date and time. No account is required — just your name, email, and phone number. Booking online gives you priority over walk-ins.",
     details: [
       "Visit the Book page on this site",
       "Pick an available date on the calendar",
@@ -62,27 +48,26 @@ const STEPS = [
     cta: { label: "Book an Appointment", href: "/book" },
   },
   {
-    number: 5,
+    number: 4,
     title: "Attend Your Appointment",
     description:
-      "Arrive at 69 Eastern Avenue, Unit 1, Brampton at your scheduled time with all required documents. Walk-ins are not accepted.",
+      "Arrive at 69 Eastern Avenue, Unit 1, Brampton at your scheduled time with all required documents. You can also walk in, though online bookings are given priority.",
     details: [
       "Arrive 5 minutes before your slot",
       "Bring all required documents (originals)",
       "Check-in at reception",
-      "Biometric capture: fingerprints and photograph — approximately 10 minutes",
+      "Biometric capture: fingerprints and photograph — approximately 30 minutes",
       "Data transmitted to NIMC for processing",
     ],
   },
   {
-    number: 6,
+    number: 5,
     title: "Receive Your NIN",
     description:
-      "Your NIN is processed and issued by NIMC after your biometric capture. You will be notified by email with collection instructions.",
+      "Your NIN is processed and issued by NIMC after your biometric capture. You will be notified by email when your NIN slip is ready.",
     details: [
       "NIMC processes NIN after biometric submission",
       "You will be notified by email when your NIN slip is ready",
-      "Collection details provided in the notification email",
     ],
   },
 ];
@@ -106,7 +91,7 @@ export default function HowToEnrollPage() {
             Your Step-by-Step Enrollment Guide
           </h1>
           <p className="font-body text-white/65 mt-4 max-w-xl mx-auto text-sm leading-relaxed">
-            Follow these six steps to successfully enroll for your NIN at Knowledge Square Brampton.
+            Follow these five steps to successfully enroll for your NIN at Knowledge Square Brampton.
           </p>
         </div>
       </div>

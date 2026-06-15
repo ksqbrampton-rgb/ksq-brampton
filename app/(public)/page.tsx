@@ -2,6 +2,7 @@ import HeroSection from "@/components/public/HeroSection";
 import StepsBanner from "@/components/public/StepsBanner";
 import AboutSection from "@/components/public/AboutSection";
 import EnrollSection from "@/components/public/EnrollSection";
+import ServicesSection from "@/components/public/ServicesSection";
 import DocumentsSection from "@/components/public/DocumentsSection";
 import LocationSection from "@/components/public/LocationSection";
 import FeesSection from "@/components/public/FeesSection";
@@ -16,6 +17,7 @@ export default function HomePage() {
       <StepsBanner />
       <AboutSection />
       <EnrollSection />
+      <ServicesSection />
       <DocumentsSection />
       <LocationSection />
       <FeesSection />

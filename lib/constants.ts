@@ -22,10 +22,18 @@ export const SITE = {
     sunday: "Sunday: Closed",
   },
   fees: {
-    newEnrollment: 50,
-    bvnCompletion: 50,
-    formAssistance: "Nominal",
     currency: "CAD",
+    min: 60,
+    max: 160,
+    attestationAssist: 60,
+    rates: [
+      { service: "Adult Enrolment", amount: 160 },
+      { service: "Child Enrolment", amount: 130 },
+      { service: "Suspended NIN Reactivation", amount: 110 },
+      { service: "BVN-Generated NIN Re-enrolment", amount: 160 },
+      { service: "Retrieve Pre-Enrolled Info", amount: 160 },
+      { service: "Migration", amount: 60 },
+    ],
   },
   social: {},
 } as const;
@@ -33,6 +41,7 @@ export const SITE = {
 export const NAV_LINKS = [
   { label: "About NIN", href: "/#about" },
   { label: "How to Enroll", href: "/#enroll" },
+  { label: "Services", href: "/#services" },
   { label: "Book", href: "/book" },
   { label: "Location", href: "/#location" },
   { label: "FAQs", href: "/#faq" },

@@ -4,7 +4,7 @@ const WHY_ITEMS = [
   "Required for voter registration with INEC",
   "Permanent identifier — valid for life, used for all government services",
   "Applicable to all ages, including children and minors",
-  "Biometric capture takes approximately 10 minutes",
+  "Biometric capture takes approximately 30 minutes",
 ];
 
 export default function AboutSection() {

@@ -3,34 +3,28 @@ const STEPS = [
     number: 1,
     title: "Gather Your Documents",
     description:
-      "Collect your valid Nigerian passport, evidence of payment, and any additional documents based on your enrollment type.",
+      "Collect your valid Nigerian passport, your Bank Verification Number (BVN), and any additional documents based on your enrollment type.",
   },
   {
     number: 2,
     title: "Complete Pre-Enrollment Form",
     description:
-      "Download and fill the NIMC pre-enrollment form. A 2D barcode is generated upon completion — bring the printed form with the barcode.",
+      "Download and complete the pre-enrollment form, then bring the printed copy to your appointment. Digital copies are not accepted.",
   },
   {
     number: 3,
-    title: "Make Payment",
+    title: "Book Your Appointment",
     description:
-      "Pay the applicable NIMC diaspora enrollment fee. Keep your payment receipt — it is a required document at your appointment.",
+      "Use our in-app booking system to choose your date and time — no account required, just your name, email, and phone. Booking online gives you priority over walk-ins.",
   },
   {
     number: 4,
-    title: "Book Your Appointment",
+    title: "Attend & Complete Biometrics",
     description:
-      "Use our in-app booking system on this site to choose your date and time slot. No account required — just your name, email, and phone.",
+      "Arrive at 69 Eastern Avenue, Unit 1, Brampton with all required documents. Biometric capture (fingerprints + photo) takes approximately 30 minutes.",
   },
   {
     number: 5,
-    title: "Attend & Complete Biometrics",
-    description:
-      "Arrive at 69 Eastern Avenue, Unit 1, Brampton with all required documents. Biometric capture (fingerprints + photo) takes approximately 10 minutes.",
-  },
-  {
-    number: 6,
     title: "Receive Your NIN",
     description:
       "Your NIN is processed and issued by NIMC. You will be notified when your NIN slip is ready for collection.",
@@ -52,7 +46,7 @@ export default function EnrollSection() {
               fontFamily: "var(--font-cormorant)",
             }}
           >
-            Six Steps to Your NIN
+            Five Steps to Your NIN
           </h2>
           <div className="gold-divider mx-auto mb-4" />
           <p className="font-body text-sm max-w-lg mx-auto" style={{ color: "var(--mid)" }}>

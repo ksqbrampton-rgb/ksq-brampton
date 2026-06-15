@@ -9,7 +9,7 @@ const FAQS = [
   },
   {
     q: "How long does the enrollment appointment take?",
-    a: "The biometric capture process takes approximately 10 minutes. Allow a total of 20–30 minutes for your visit including check-in and document verification.",
+    a: "The biometric capture process takes approximately 30 minutes. Allow additional time for check-in and document verification.",
   },
   {
     q: "Can I enroll with an expired passport?",
@@ -17,7 +17,7 @@ const FAQS = [
   },
   {
     q: "I already have a BVN — do I still need to enroll for a NIN?",
-    a: "If your BVN was never linked to a NIN through biometric capture, you still need to complete NIN enrollment. We offer a BVN + NIN Completion service for this purpose.",
+    a: "If your BVN was never linked to a NIN through biometric capture, you still need to complete NIN enrollment. We handle this through our BVN-Generated NIN re-enrolment service.",
   },
   {
     q: "Who issues the NIN — Knowledge Square or NIMC?",
@@ -25,11 +25,11 @@ const FAQS = [
   },
   {
     q: "What are the fees for enrollment?",
-    a: "New enrollment and BVN + NIN completion are each $50 CAD. Form assistance is available for a nominal fee. See the Fees section for full details.",
+    a: "Fees depend on your enrollment type and range from $60 to $160 CAD. See the Fees section for the full rate card.",
   },
   {
     q: "When and how do I collect my NIN slip?",
-    a: "Your NIN slip is processed by NIMC after your biometric capture. You will be notified by email when it is ready. Collection details will be provided in that notification.",
+    a: "Your NIN slip is processed by NIMC after your biometric capture. You will be notified by email when it is ready.",
   },
   {
     q: "What if I made an error on my pre-enrollment form?",
@@ -37,11 +37,11 @@ const FAQS = [
   },
   {
     q: "Can children be enrolled for a NIN?",
-    a: "Yes. NIN enrollment is applicable to all ages including minors. Children must be accompanied by a parent or guardian, and the parent's passport is an additional required document.",
+    a: "Yes. NIN enrollment is available for all ages. Infants from 7 months old are eligible. Children must be accompanied by a parent or guardian, and for under-16s the parent or guardian's passport and NIN are required.",
   },
   {
     q: "Is an appointment required, or can I walk in?",
-    a: "Appointments are required. Walk-ins are not accepted. Book your slot using our in-app booking system — it takes just a few minutes and no account is needed.",
+    a: "You can either book online or walk in. Priority is given to those who booked online, so we recommend booking your slot in advance — it takes just a few minutes and no account is needed.",
   },
 ];
 

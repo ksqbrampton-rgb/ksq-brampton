@@ -113,7 +113,7 @@ export default function SlotPicker({ date, selectedSlot, onSelectSlot }: Props) 
             })}
           </div>
           <p className="text-xs font-body mt-3" style={{ color: "var(--mid)" }}>
-            Appointments are 30 minutes. Walk-ins are not accepted.
+            Appointments are 30 minutes. Booking online gives you priority over walk-ins.
           </p>
         </>
       )}

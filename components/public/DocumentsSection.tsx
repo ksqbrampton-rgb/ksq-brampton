@@ -2,7 +2,7 @@ const DOCUMENTS = [
   {
     title: "Nigerian Passport",
     description:
-      "Valid or expired Nigerian international passport. If expired, bring a secondary ID (national ID, driver's licence).",
+      "Valid or expired Nigerian international passport. If expired, bring a secondary, current government-issued ID with details matching the passport (e.g., driver's licence).",
     required: true,
     icon: (
       <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
@@ -13,34 +13,39 @@ const DOCUMENTS = [
     ),
   },
   {
-    title: "Evidence of Payment",
+    title: "Bank Verification Number (BVN)",
     description:
-      "Receipt confirming payment of the NIMC diaspora enrollment fee. Online bank transfer or cash receipt accepted.",
+      "Bring your BVN. A NIN may already be reserved against it; it becomes valid only after enrolment and biometric capture at the centre.",
     required: true,
     icon: (
       <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-        <rect x="2" y="5" width="20" height="14" rx="2"/>
-        <line x1="2" y1="10" x2="22" y2="10"/>
+        <rect x="3" y="4" width="18" height="16" rx="2"/>
+        <circle cx="9" cy="10" r="2"/>
+        <path d="M6.5 16c0-1.4 1.1-2.4 2.5-2.4s2.5 1 2.5 2.4"/>
+        <line x1="14.5" y1="9" x2="18" y2="9"/>
+        <line x1="14.5" y1="13" x2="18" y2="13"/>
       </svg>
     ),
   },
   {
-    title: "Pre-Enrollment Form (2D Barcode)",
+    title: "Pre-Enrollment Form",
     description:
-      "Completed NIMC pre-enrollment form with the 2D barcode visible. Must be printed — digital copies not accepted.",
+      "Completed pre-enrollment form, printed. Digital copies are not accepted.",
     required: true,
     icon: (
       <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-        <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/>
-        <rect x="3" y="14" width="7" height="7"/>
-        <path d="M21 14h-3v3h3v3h-3v1M14 14h3v1M14 18h1v3M21 21v-1"/>
+        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+        <polyline points="14 2 14 8 20 8"/>
+        <line x1="16" y1="13" x2="8" y2="13"/>
+        <line x1="16" y1="17" x2="8" y2="17"/>
+        <polyline points="10 9 9 9 8 9"/>
       </svg>
     ),
   },
   {
     title: "Parent's Passport",
     description:
-      "Required only for minors (under 18). Parent or guardian must accompany the child to the appointment.",
+      "Required for minors. A parent or guardian must accompany the child; for under-16s, the parent or guardian's NIN is also required.",
     required: false,
     icon: (
       <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
@@ -76,11 +81,11 @@ export default function DocumentsSection() {
               fontFamily: "var(--font-cormorant)",
             }}
           >
-            What to Bring to Your Appointment
+            What to Bring For Your Appointment
           </h2>
           <div className="gold-divider mx-auto mb-4" />
           <p className="font-body text-sm max-w-lg mx-auto text-white/60">
-            Ensure you have all required documents before your appointment. Walk-ins are not accepted.
+            Ensure you have all required documents before your appointment.
           </p>
         </div>
 
@@ -127,20 +132,6 @@ export default function DocumentsSection() {
           ))}
         </div>
 
-        {/* Bottom note */}
-        <div
-          className="mt-10 p-5 rounded-lg reveal"
-          style={{
-            borderLeft: "4px solid var(--gold)",
-            background: "rgba(201,151,58,0.08)",
-          }}
-        >
-          <p className="text-sm font-body text-white/75">
-            <span className="font-semibold text-white">Need help with your form?</span>{" "}
-            Form completion assistance is available at the center for a nominal fee. Please
-            mention this when booking your appointment.
-          </p>
-        </div>
       </div>
     </section>
   );
