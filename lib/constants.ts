@@ -26,6 +26,10 @@ export const SITE = {
     min: 60,
     max: 160,
     attestationAssist: 60,
+    // Headline amounts retained for admin reporting/settings compatibility.
+    // (Adult enrolment and BVN-generated re-enrolment are both $160.)
+    newEnrollment: 160,
+    bvnCompletion: 160,
     rates: [
       { service: "Adult Enrolment", amount: 160 },
       { service: "Child Enrolment", amount: 130 },
