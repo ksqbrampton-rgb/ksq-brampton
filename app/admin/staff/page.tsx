@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import InviteStaffModal from "@/components/admin/InviteStaffModal";
 
 const ROLE_LABELS: Record<string, string> = {
@@ -21,16 +21,12 @@ interface StaffMember {
   email: string;
   role: string;
   isActive: boolean;
-  lastLogin?: string;
+  pending?: boolean;
+  lastLogin?: string | null;
   createdAt: string;
 }
 
-const INITIAL_STAFF: StaffMember[] = [
-  { id: "s-001", name: "Admin User",         email: "admin@ksqbrampton.ca",   role: "SUPER_ADMIN", isActive: true, lastLogin: new Date().toISOString(),                            createdAt: "2026-01-15" },
-  { id: "s-002", name: "Enrollment Officer", email: "officer@ksqbrampton.ca", role: "OFFICER",     isActive: true, lastLogin: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(), createdAt: "2026-02-01" },
-];
-
-function timeAgo(iso?: string): string {
+function timeAgo(iso?: string | null): string {
   if (!iso) return "Never";
   const diff = Date.now() - new Date(iso).getTime();
   const mins = Math.floor(diff / 60000);
@@ -42,24 +38,54 @@ function timeAgo(iso?: string): string {
 }
 
 export default function StaffPage() {
-  const [staff, setStaff] = useState<StaffMember[]>(INITIAL_STAFF);
+  const [staff, setStaff] = useState<StaffMember[]>([]);
+  const [loading, setLoading] = useState(true);
   const [showInvite, setShowInvite] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
 
-  function toggleActive(id: string) {
-    setStaff(s => s.map(m => m.id === id ? { ...m, isActive: !m.isActive } : m));
+  async function loadStaff() {
+    try {
+      const res = await fetch("/api/admin/data/staff?all=1");
+      const data = await res.json();
+      if (res.ok && Array.isArray(data.staff)) setStaff(data.staff);
+    } catch {
+      /* leave existing list in place on transient error */
+    } finally {
+      setLoading(false);
+    }
   }
 
-  function handleInvited(invited: { name: string; email: string; role: string }) {
-    setStaff(s => [...s, {
-      id: `s-${Date.now()}`,
-      name: invited.name,
-      email: invited.email,
-      role: invited.role,
-      isActive: true,
-      createdAt: new Date().toISOString().slice(0, 10),
-    }]);
+  useEffect(() => {
+    loadStaff();
+  }, []);
+
+  async function toggleActive(id: string, current: boolean) {
+    // Optimistic flip, reverted if the request fails.
+    setStaff(s => s.map(m => (m.id === id ? { ...m, isActive: !current } : m)));
+    try {
+      const res = await fetch("/api/admin/data/staff", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, isActive: !current }),
+      });
+      if (!res.ok) throw new Error();
+    } catch {
+      setStaff(s => s.map(m => (m.id === id ? { ...m, isActive: current } : m)));
+      setNotice("Could not update that account. Please try again.");
+    }
+  }
+
+  function handleInvited(info: { name: string; emailSent: boolean }) {
     setShowInvite(false);
+    setNotice(
+      info.emailSent
+        ? `Invitation sent to ${info.name}. They'll appear as Pending until they set a password.`
+        : `${info.name} was added, but the invite email could not be sent. Ask them to use "Forgot Password" at the login page, or check the Resend logs.`
+    );
+    loadStaff();
   }
+
+  const activeCount = staff.filter(s => s.isActive).length;
 
   return (
     <div className="max-w-4xl space-y-5">
@@ -70,7 +96,7 @@ export default function StaffPage() {
             Staff
           </h1>
           <p className="text-sm font-body mt-0.5" style={{ color: "var(--mid)" }}>
-            {staff.filter(s => s.isActive).length} active · {staff.length} total
+            {activeCount} active · {staff.length} total
           </p>
         </div>
         <button
@@ -84,6 +110,21 @@ export default function StaffPage() {
           Invite Staff
         </button>
       </div>
+
+      {/* Notice */}
+      {notice && (
+        <div
+          className="flex items-start justify-between gap-3 p-3 rounded-lg text-xs font-body"
+          style={{ background: "rgba(26,74,46,0.05)", color: "var(--mid)", border: "1px solid rgba(26,74,46,0.08)" }}
+        >
+          <span>{notice}</span>
+          <button onClick={() => setNotice(null)} style={{ color: "var(--mid)" }} aria-label="Dismiss">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+            </svg>
+          </button>
+        </div>
+      )}
 
       {/* Staff table */}
       <div
@@ -102,7 +143,11 @@ export default function StaffPage() {
               </tr>
             </thead>
             <tbody>
-              {staff.map((member, i) => {
+              {loading ? (
+                <tr><td colSpan={6} className="px-5 py-8 text-center text-sm font-body" style={{ color: "var(--mid)" }}>Loading staff…</td></tr>
+              ) : staff.length === 0 ? (
+                <tr><td colSpan={6} className="px-5 py-8 text-center text-sm font-body" style={{ color: "var(--mid)" }}>No staff yet. Invite your first team member.</td></tr>
+              ) : staff.map((member, i) => {
                 const roleStyle = ROLE_COLORS[member.role] ?? ROLE_COLORS.OFFICER;
                 return (
                   <tr
@@ -128,16 +173,25 @@ export default function StaffPage() {
                         className="text-xs font-body font-medium px-2.5 py-1 rounded-full"
                         style={{ background: roleStyle.bg, color: roleStyle.color }}
                       >
-                        {ROLE_LABELS[member.role]}
+                        {ROLE_LABELS[member.role] ?? member.role}
                       </span>
                     </td>
                     <td className="px-5 py-4">
-                      <span
-                        className="text-xs font-body font-medium"
-                        style={{ color: member.isActive ? "var(--green)" : "var(--mid)" }}
-                      >
-                        {member.isActive ? "● Active" : "○ Inactive"}
-                      </span>
+                      {member.pending ? (
+                        <span
+                          className="text-xs font-body font-medium px-2.5 py-1 rounded-full"
+                          style={{ background: "rgba(201,151,58,0.12)", color: "var(--gold)" }}
+                        >
+                          ◐ Pending
+                        </span>
+                      ) : (
+                        <span
+                          className="text-xs font-body font-medium"
+                          style={{ color: member.isActive ? "var(--green)" : "var(--mid)" }}
+                        >
+                          {member.isActive ? "● Active" : "○ Inactive"}
+                        </span>
+                      )}
                     </td>
                     <td className="px-5 py-4">
                       <span className="text-xs font-body" style={{ color: "var(--mid)" }}>
@@ -145,11 +199,13 @@ export default function StaffPage() {
                       </span>
                     </td>
                     <td className="px-5 py-4">
-                      <span className="text-xs font-body" style={{ color: "var(--mid)" }}>{member.createdAt}</span>
+                      <span className="text-xs font-body" style={{ color: "var(--mid)" }}>
+                        {member.createdAt ? member.createdAt.slice(0, 10) : "—"}
+                      </span>
                     </td>
                     <td className="px-5 py-4">
                       <button
-                        onClick={() => toggleActive(member.id)}
+                        onClick={() => toggleActive(member.id, member.isActive)}
                         className="px-3 py-1.5 rounded text-xs font-body font-medium transition-colors"
                         style={{
                           background: member.isActive ? "rgba(239,68,68,0.08)" : "rgba(26,74,46,0.08)",

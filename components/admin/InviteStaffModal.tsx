@@ -4,7 +4,7 @@ import { useState } from "react";
 
 interface Props {
   onClose: () => void;
-  onInvited: (staff: { name: string; email: string; role: string }) => void;
+  onInvited: (info: { name: string; emailSent: boolean }) => void;
 }
 
 const ROLES = [
@@ -33,11 +33,25 @@ export default function InviteStaffModal({ onClose, onInvited }: Props) {
     setLoading(true);
     setError(null);
 
-    // TODO Phase 6 DB: call admin.inviteStaff tRPC — creates StaffUser + sends invite email
-    await new Promise(r => setTimeout(r, 800));
+    try {
+      const res = await fetch("/api/admin/data/staff", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ firstName, lastName, email, role }),
+      });
+      const data = await res.json();
 
-    onInvited({ name: `${firstName} ${lastName}`.trim(), email, role });
-    setLoading(false);
+      if (!res.ok) {
+        setError(data.error ?? "Could not send the invite. Please try again.");
+        setLoading(false);
+        return;
+      }
+
+      onInvited({ name: data.staff?.name ?? `${firstName} ${lastName}`.trim(), emailSent: !!data.emailSent });
+    } catch {
+      setError("Network error. Please try again.");
+      setLoading(false);
+    }
   }
 
   return (

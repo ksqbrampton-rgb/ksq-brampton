@@ -37,11 +37,12 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Account not found or inactive." }, { status: 404 });
     }
 
-    // Hash new password and update
+    // Hash new password and update. Stamp inviteAcceptedAt on first set so an
+    // invited (pending) account becomes active; harmless on normal resets.
     const passwordHash = await bcrypt.hash(password, 12);
     await db.staffUser.update({
       where: { id: staffId },
-      data: { passwordHash },
+      data: { passwordHash, inviteAcceptedAt: staff.inviteAcceptedAt ?? new Date() },
     });
 
     return NextResponse.json({ success: true });
