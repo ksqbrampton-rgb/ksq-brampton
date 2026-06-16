@@ -77,15 +77,15 @@ export default function HeroSection() {
 
           {/* CTAs */}
           <div className="flex flex-col xs:flex-row gap-3 sm:gap-4">
+            <a href="#services" className="btn-outline text-sm sm:text-base px-6 sm:px-8 py-3.5 sm:py-4 text-center xs:text-left">
+              Our Services
+            </a>
             <Link href="/book" className="btn-primary text-sm sm:text-base px-6 sm:px-8 py-3.5 sm:py-4 justify-center xs:justify-start">
               Book an Appointment
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M5 12h14M12 5l7 7-7 7"/>
               </svg>
             </Link>
-            <a href="#enroll" className="btn-outline text-sm sm:text-base px-6 sm:px-8 py-3.5 sm:py-4 text-center xs:text-left">
-              Learn How It Works
-            </a>
           </div>
 
           {/* Stats row */}

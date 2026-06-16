@@ -25,7 +25,7 @@ export const SITE = {
     currency: "CAD",
     min: 60,
     max: 160,
-    attestationAssist: 60,
+    attestationAssist: 25,
     // Headline amounts retained for admin reporting/settings compatibility.
     // (Adult enrolment and BVN-generated re-enrolment are both $160.)
     newEnrollment: 160,
