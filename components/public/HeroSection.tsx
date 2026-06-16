@@ -77,7 +77,11 @@ export default function HeroSection() {
 
           {/* CTAs */}
           <div className="flex flex-col xs:flex-row gap-3 sm:gap-4">
-            <a href="#services" className="btn-outline text-sm sm:text-base px-6 sm:px-8 py-3.5 sm:py-4 text-center xs:text-left">
+            <a
+              href="#services"
+              className="btn-outline text-sm sm:text-base px-6 sm:px-8 py-3.5 sm:py-4"
+              style={{ justifyContent: "center", textAlign: "center", fontWeight: 600 }}
+            >
               Our Services
             </a>
             <Link href="/book" className="btn-primary text-sm sm:text-base px-6 sm:px-8 py-3.5 sm:py-4 justify-center xs:justify-start">
